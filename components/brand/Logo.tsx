@@ -47,10 +47,14 @@ const TOKEN_COLORS: LogoColors = {
  * linije, x-visina tela (a, s) 238–304, „y" silazi 461.
  *
  * Korak 10: rukopis je bio centriran i prevelik (scale 1.15) pa je prekrivao celo
- * „BEAUTY" i seckao se o viewBox. Sada je LEVO poravnat sa BEAUTY, ~38% njegove širine,
- * i sedi ISPOD reči — gornje petlje tek dodiruju donju ivicu slova.
+ * „BEAUTY" i seckao se o viewBox. Sada je LEVO poravnat sa BEAUTY i sedi ISPOD reči —
+ * gornje petlje tek dodiruju donju ivicu slova.
+ *
+ * Korak 15: potpis podignut sa ~38% na ~64% širine BEAUTY (≈ dve trećine) — da se „by Masha"
+ * jasno čita kad wordmark sleti u nav. Vrh (ascender) je i dalje zalepljen ispod BEAUTY jer
+ * `sigBaseline` prati scale; raste samo naniže, pa je `box.h` produžen da rukopis ne klizne.
  */
-const SIG_SCALE = 0.37; // rukopis ≈ 38% širine BEAUTY
+const SIG_SCALE = 0.63; // rukopis ≈ 64% širine BEAUTY (≈ dve trećine)
 const SIG_ASCENDER = 748; // najviši ascender (M/h) u upm
 const LOCKUP = {
   beautyBaseline: BEAUTY.capHeight, // vrh slova na y = 0, osnovna linija na y = 686
@@ -60,8 +64,9 @@ const LOCKUP = {
   sigLeftX: -10,
   /** Vrh ascendera (~748upm) pada ~5upm ispod osnovne linije slova → petlje ih tek dodirnu. */
   sigBaseline: BEAUTY.capHeight + 5 + SIG_ASCENDER * SIG_SCALE,
-  /** viewBox lockup-a (wordmark): BEAUTY nosi širinu, rukopis stane levo dole. */
-  box: { x: -40, y: -40, w: BEAUTY.width + 80, h: 1220 },
+  /** viewBox lockup-a (wordmark): BEAUTY nosi širinu, rukopis stane levo dole.
+   * `h` = 1600 (bilo 1220): veći potpis (SIG_SCALE 0.63) silazi niže, ovoliko mesta mu treba. */
+  box: { x: -40, y: -40, w: BEAUTY.width + 80, h: 1600 },
 } as const;
 
 /** Mark: lockup skaliran u krug 1000×1000 (BEAUTY ≈ 70% prečnika, vizuelno centrirano). */

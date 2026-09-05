@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useQuery } from "convex/react";
 import { Phone, ShoppingBag, User } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import { Logo } from "@/components/brand/Logo";
 import { useOptionalLenis } from "@/components/providers/SmoothScroll";
 import { FacebookIcon, InstagramIcon } from "@/components/site/SocialIcons";
-import { Button } from "@/components/ui/Button";
+import { Button, type ButtonSize } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useCart } from "@/lib/cartStore";
 import { EASE_ENTER, ScrollTrigger, gsap, useGSAP } from "@/lib/gsap";
@@ -66,6 +68,9 @@ const ICON_LINK =
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/** Bez `NEXT_PUBLIC_CONVEX_URL` nema Convex provider-a, pa se `useQuery` ne sme pozvati. */
+const HAS_BACKEND = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 
 /** Instagram nav — pragovi u px (spec B). */
 const HIDE_AFTER_DOWN = 24;
@@ -222,6 +227,40 @@ function MenuButton({
         <span className={`${line} top-[11px] ${open ? "-translate-y-1 -rotate-45" : ""}`} />
       </span>
     </button>
+  );
+}
+
+/**
+ * Glavni CTA u traci. Gost i kupac idu na zakazivanje; vlasnica/osoblje
+ * (`admin.me.canOpenPanel`) umesto toga dobija „Admin panel" → /admin.
+ */
+type CtaShared = { className?: string; size?: ButtonSize; onClick?: () => void };
+type NavCtaProps = CtaShared & { guestLabel: string };
+
+function CtaButton({ href, label, className, size, onClick }: CtaShared & { href: string; label: string }) {
+  return (
+    <Button as="a" href={href} className={className} size={size} magnetic={false} onClick={onClick}>
+      {label}
+    </Button>
+  );
+}
+
+/** Sa backendom: `admin.me` nikad ne puca (gost → role null), pa je bezbedno na svakoj strani. */
+function AdminAwareCta({ guestLabel, ...rest }: NavCtaProps) {
+  const me = useQuery(api.admin.me, {});
+  return me?.canOpenPanel ? (
+    <CtaButton href="/admin" label="Admin panel" {...rest} />
+  ) : (
+    <CtaButton href="/#zakazivanje" label={guestLabel} {...rest} />
+  );
+}
+
+/** HAS_BACKEND je modulska konstanta (ne menja se između rendera), pa je uslovni izbor bezbedan za hook-ove. */
+function NavCta({ guestLabel, ...rest }: NavCtaProps) {
+  return HAS_BACKEND ? (
+    <AdminAwareCta guestLabel={guestLabel} {...rest} />
+  ) : (
+    <CtaButton href="/#zakazivanje" label={guestLabel} {...rest} />
   );
 }
 
@@ -436,9 +475,7 @@ export function SiteNavClient({
             >
               <User size={20} strokeWidth={1.5} aria-hidden />
             </Link>
-            <Button as="a" href="/#zakazivanje" className="ml-1 hidden sm:inline-flex" magnetic={false}>
-              Zakažite
-            </Button>
+            <NavCta guestLabel="Zakažite" className="ml-1 hidden sm:inline-flex" />
             <MenuButton ref={toggleRef} open={open} onClick={() => setOpen(!open)} />
           </div>
         </div>
@@ -481,9 +518,7 @@ export function SiteNavClient({
           </ul>
 
           <div data-menu-item className="mt-6 flex flex-col gap-2">
-            <Button as="a" href="/#zakazivanje" size="lg" magnetic={false} onClick={close} className="w-full">
-              Zakažite termin
-            </Button>
+            <NavCta guestLabel="Zakažite termin" size="lg" onClick={close} className="w-full" />
             <div className="flex gap-2">
               <Link
                 href="/korpa"
