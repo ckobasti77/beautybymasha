@@ -15,7 +15,8 @@ import { photoById, photosByUse, type Photo } from "@/lib/photos";
  * Varijanta je `photo` (čista fotografija bez wordmarka), OSIM za bbm-09 (pre/posle
  * kartica) čiji `note` u `data/photos.json` izričito traži `card` rez.
  * Korak 10: bbm-10 (timska) je premeštena u sekciju „Naš tim", a bbm-24 (zid lakova
- * sa promo natpisom) je izbačen iz galerije — ostaje samo kao baner u shop sekciji.
+ * sa promo natpisom) je izbačen iz galerije; od koraka 12 ga nema ni u shop sekciji —
+ * klijent ne želi tu objavu nigde na sajtu.
  *
  * `alt` tekstovi su već napisani u `data/photos.json` i koriste se doslovno.
  */

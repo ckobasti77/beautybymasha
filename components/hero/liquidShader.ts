@@ -6,8 +6,10 @@
  * površinu tečnosti; preko nje lenjo klizi jedan specular pojas koji se čita kao
  * mokar lak. Pun ciklus je oko 24 s.
  *
- * Sve je u fragmentu — vertex samo prosleđuje `uv`. Bez tekstura, bez učitavanja,
- * bez grananja (`mix`/`smoothstep` umesto `if`).
+ * Sve je u fragmentu. Vertex ne koristi kameru: plane 2×2 ide pravo u NDC i puni ceo
+ * kadar bez obzira na kameru — hero scena od koraka 12 ima PERSPEKTIVNU kameru zbog
+ * bočice, a pozadina mora da ostane ravna i puna (`frustumCulled` isključen na mesh-u).
+ * Bez tekstura, bez učitavanja, bez grananja (`mix`/`smoothstep` umesto `if`).
  */
 
 export const VERTEX_SHADER = /* glsl */ `
@@ -15,7 +17,9 @@ export const VERTEX_SHADER = /* glsl */ `
 
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    // Puni kadar nezavisno od kamere: koordinate ravni 2×2 su već NDC. Dubina je
+    // nebitna — materijal ne testira ni ne piše dubinu, a crta se prvi (renderOrder -1).
+    gl_Position = vec4(position.xy, 0.0, 1.0);
   }
 `;
 
@@ -24,7 +28,8 @@ export const FRAGMENT_SHADER = /* glsl */ `
 
   uniform float uTime;
   uniform vec2  uPointer;     // -1..1, već ulerpovan na CPU strani
-  uniform float uScroll;      // 0..1, napredak hero pin-a
+  uniform float uScroll;      // 0..1, izlazak heroja iz kadra (dubina)
+  uniform float uPour;        // 0..1, razlivanje minta gore-desno → dole-levo (spec 12 C)
   uniform vec3  uPalette[4];
   uniform float uReduced;     // 1 = bez kretanja (rezerva; mi tada i ne montiramo Canvas)
   uniform vec2  uResolution;
@@ -57,7 +62,7 @@ export const FRAGMENT_SHADER = /* glsl */ `
     return 130.0 * dot(m, g);
   }
 
-  /* Četiri oktave — dalje se na 1.75 dpr ionako ne vidi, a košta. */
+  /* Četiri oktave — dalje se na 1.5 dpr ionako ne vidi, a košta. */
   float fbm(vec2 p) {
     float sum = 0.0;
     float amp = 0.5;
@@ -117,14 +122,29 @@ export const FRAGMENT_SHADER = /* glsl */ `
     col = mix(col, uPalette[3], edge * 0.30);
 
     /*
+     * Razlivanje (spec 12 → C): dok se bočica naginje, mint FRONT kreće iz gornjeg desnog
+     * ugla ka donjem levom. diag je rastojanje po dijagonali od tog ugla (0 tamo, ~1.41
+     * u suprotnom); ivica fronta je iskrivljena istim warp poljem r, pa nije linija nego
+     * lak koji curi. Na uPour = 0 front stoji van kadra (ništa ne curi), na 1 prekriva i
+     * suprotni ugao.
+     */
+    float diag = dot(vec2(1.0) - vUv, vec2(0.7071));
+    float front = uPour * 2.3 - 0.3;
+    float pour = 1.0 - smoothstep(front - 0.45, front + 0.05, diag + 0.18 * r.x);
+
+    /*
      * Čitljiva površina ispod copy-ja: široki meki veo boje papira, pomeren ulevo,
      * tamo gde stoje wordmark, naslov i dugmad. Bez njega naslov sedi na šarenoj
      * podlozi i kontrast padne ispod AA. Desna polovina kadra nema veo — tamo mint
-     * ostaje pun.
+     * ostaje pun. Kad se lak razlije (uPour → 1) copy je već iznad kadra, pa veo popušta.
      */
     vec2 d = (vUv - vec2(0.30, 0.46)) / vec2(0.74, 0.64);
     float veil = 1.0 - smoothstep(0.0, 1.0, length(d));
-    col = mix(col, uPalette[3], veil * 0.50);
+    col = mix(col, uPalette[3], veil * 0.50 * (1.0 - 0.8 * pour));
+
+    // Razliveni lak: zasićen mint preko svega što je front prešao, sa mokrim odsjajem.
+    col = mix(col, uPalette[0], pour * 0.85);
+    col += spec * 0.35 * pour * warp;
 
     // Završni lift (linearni prostor, pre colorspace_fragment): zasićenost pa kontrast,
     // da mint i rose izađu iz skoro-belog. Paleta je inače po konstrukciji izbeljena.

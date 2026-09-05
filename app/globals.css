@@ -324,12 +324,33 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
   }
 }
 
-/* Frosted sloj — SAMO lepljiva navigacija i donja akciona traka */
-@utility glass {
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/*
+ * Frosted slojevi — SAMO lepljiva navigacija i donja akciona traka (admin).
+ *
+ * Obične klase u `components` sloju, NE `@utility`: Tailwind v4 iz `@utility` bloka
+ * ispušta `backdrop-filter` (u isporučenom CSS-u ostanu samo background i border —
+ * provereno u browseru, korak 12), pa je `glass` do sada bio samo poluprovidna podloga
+ * bez blura. Zato je sadržaj na /shop „provirivao" kroz navigaciju.
+ *
+ * `nav-frost`: traka navigacije kad hero izađe (i na svakoj strani bez heroja) — 82 %
+ * podloge teme + blur, linija samo ispod (spec 12 → I). Nosi je unutrašnja traka, ne
+ * <nav>: backdrop-filter na pretku bi zarobio `position: fixed` panel mobilnog menija
+ * u visinu trake.
+ */
+@layer components {
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-frost {
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
 }
 
 /*

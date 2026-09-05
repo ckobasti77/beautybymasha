@@ -10,12 +10,19 @@ PRVO PROCITAJ u celosti:
   docs/MOTION.md, data/design-dna.json (visual_effects), CLAUDE.md
 
 SKILLS: threejs-fundamentals, threejs-materials, threejs-lighting, threejs-interaction,
-threejs-shaders, gsap-scrolltrigger, gsap-performance, 3d-scrollytelling, motion-design
+threejs-loaders, threejs-shaders, gsap-scrolltrigger, gsap-performance, 3d-scrollytelling
 
 STA SE PRAVI, redom:
 
-A/B/C - BOCICA (spec A-E): proceduralna bocica iz koraka 08 ulazi u hero, desna polovina,
-  ~62% visine, tecnost mint #57BFA8. JEDAN canvas sa shaderom. Idle lebdenje + pointer
+0 - MODEL: napravi bocicu u BLENDERU, headless (`blender -b -P scripts/bottle.py`),
+  po specu "MODEL IZ BLENDERA": zaobljeno KVADRATNO telo (ne okruglo - proceduralna iz
+  koraka 08 je lathe i lici na parfem), tanak vrat, zdepast zatvarac sa zljebovima,
+  meshevi tacno `Glass` / `Liquid` / `Cap`, Draco GLB <= 500 KB, dekoder u public/draco/.
+  Ako Blender ne radi ili budzet ne prolazi posle 2 pokusaja → proceduralna bocica iz
+  koraka 08, upisi zasto. Hero ne sme da ceka na Blender.
+
+A/B/C - BOCICA U HEROJU (spec A-E): desna polovina, ~62% visine, tecnost mint #57BFA8
+  (kod menja boju mesha `Liquid`). JEDAN canvas sa shaderom. Idle lebdenje + pointer
   parallax. Scroll scrub BEZ PINA: 0-35% naginje se ka copy-ju, 25-70% shader uPour raste
   i mint se razliva po pozadini, 55-100% bocica se smanjuje i nestaje.
   <1024 px / reduced-motion / bez WebGL2 → bocice nema, copy puna sirina.

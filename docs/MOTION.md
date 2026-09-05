@@ -77,17 +77,34 @@ Sve ulazi **redosledom čitanja**, nikad odjednom:
 Ukupno nikad duže od ~1,2 s od trenutka kad sekcija uđe u kadar. Duže od toga i deluje
 kao da sajt ne radi.
 
-## Hero — scroll scenario
+## Hero — scroll scenario (korak 12)
 
-1. **0–15% skrola:** shader miruje i diše, copy stiže reč po reč, dugmad iskaču poslednja
-2. **15–60%:** hero je `pin`-ovan; shader dobija dubinu (`uScroll`), wordmark se smanjuje
-   i pomera ka gornjem levom uglu gde postaje logo u navigaciji (GSAP Flip)
-3. **60–100%:** shader se skuplja u **krug** — motiv iz logotipa — koji se smanjuje
-   i predaje mesto prvoj ikoni sekcije Usluge
-4. Navigacija dobija podlogu (frosted) tek kad hero izađe iz kadra
+Hero je **obična sekcija od 100svh, bez pina** (pin je uklonjen u koraku 10: `.pin-spacer`
+je pomerao sve trigere ispod i copy je ostajao nevidljiv — ne vraća se). Jedan
+ScrollTrigger na sekciji (`start: "top top"`, `end: "bottom top"`, `scrub`, samo ≥ 1024 px
+i bez `prefers-reduced-motion`) daje napredak 0 → 1 dok hero izlazi iz kadra, i taj jedan
+broj vozi sve:
 
-Na mobilnom i uz `prefers-reduced-motion`: bez pin-a, bez shadera, bez Flip-a.
-Statični gradijent, copy stiže reč po reč, korisnik normalno skroluje.
+1. **Ulaz (nezavisno od skrola):** shader diše, copy stiže reč po reč kroz `revealWords`
+   (hero je `data-reveal="off"` i sam vraća dug), dugmad iskaču poslednja.
+2. **0–35 %:** 3D bočica (desna polovina, isti canvas kao shader) se **naginje** ka copy-ju
+   (rotation.z do +55°, rotation.x do +12°). Idle lebdenje i pointer parallax ostaju.
+3. **25–70 %:** shader `uPour` 0 → 1 — mint se **razliva** iz gornjeg desnog ugla ka donjem
+   levom, veo ispod copy-ja popušta (copy je do tada iznad kadra).
+4. **0–70 %:** wordmark iz heroja **putuje u logo slot navigacije** — samo `transform`
+   (translate + scale) po izmerenim pravougaonicima (`lib/logoTravel.ts`), bez Flip-a.
+   **70–85 %:** crossfade — wordmark → opacity 0 (pa `visibility: hidden`), nav logo → 1.
+5. **55–100 %:** bočica se smanjuje (1 → 0.7), drift ka centru, opacity → 0.
+6. Navigacija dobija frosted podlogu kad prođe **85 %** heroja (IntersectionObserver,
+   `intersectionRatio < 0.15`) i na svakoj strani bez heroja.
+
+Copy se **ne dira**: njegov opacity drži reveal sistem i ostaje čitljiv do kraja. Sve je na
+`transform` i uniformima; ništa ne menja layout. Brojevi žive u `lib/heroChoreography.ts`
+(testirano).
+
+Na < 1024 px i uz `prefers-reduced-motion`: bez scrub-a, bez bočice; ispod 769 px ni
+shadera — statični gradijent, copy stiže reč po reč, wordmark stoji, nav logo se pojavi
+klasom kad hero prođe. Korisnik normalno skroluje.
 
 ## Provera pre nego što kažeš „gotovo"
 

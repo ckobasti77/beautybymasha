@@ -1,8 +1,142 @@
 # STATUS
 
+Stanje posle koraka **12 — 3D bočica u heroju, logo koji putuje u navigaciju, nova
+navigacija** (ispod: korak 11, pa zatečeno stanje posle koraka 08).
+Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 12 — šta je dodato
+
+### ⚠ Spec je promenjen usred rada — model iz Blendera NIJE rađen
+
+`.nightrun/specs/12-hero-bocica.md` i `.nightrun/prompts/12-hero-bocica.md` su na disku
+prepisani DOK je ovaj korak trajao (pri startu su bili jednaki HEAD-u): novi tekst dodaje
+sekciju „MODEL IZ BLENDERA" (`scripts/bottle.py`, headless `blender -b`, Draco GLB ≤ 500 KB,
+`useGLTF` + dekoder u `public/draco/`, provera 4b). Prompt sa kojim je ova sesija pokrenuta
+je starija verzija (proceduralna bočica iz koraka 08), a i novi spec kaže „Hero ne sme da
+čeka na Blender" i dozvoljava proceduralnu bočicu kao fallback uz zapis ovde. **Zato je u
+heroju proceduralna bočica** (`components/three/bottleGeometry.ts` — telo je već zaobljen
+kvadrat kroz superelipsu, ne čist lathe). GLB iz Blendera je zaseban posao: skripta, budžet,
+dekoder, zamena `BottleModel` unutrašnjosti; `HeroBottle`/`BottleScene` ne bi menjali API.
+
+### Hero (`components/hero/`, `components/three/HeroBottle.tsx`, `lib/heroChoreography.ts`)
+
+- **Jedan canvas, jedna scena, perspektivna kamera** (fov 30, z 28). Shader ravan ide pravo
+  u NDC iz vertex shadera (puni kadar bez obzira na kameru, `renderOrder -1`, bez dubine);
+  bočica je običan objekat ispred nje. Staklo refraktuje mint pozadinu jer su u istoj sceni;
+  `gl.transmissionResolutionScale = 0.5` da taj drugi prolaz fBm-a ne udvostruči cenu.
+- Bočica: desna polovina kadra, 62 % visine, tečnost `#57BFA8`, `RoomEnvironment` (0 bajtova
+  mreže, intenzitet 0.6) + jedno key svetlo; idle lebdenje (±1,5 %, 6 s) i yaw (±7°, 11 s),
+  pointer parallax ±6° (samo `hover: hover` + `pointer: fine`). Samo ≥ 1024 px; shader sam
+  od 769 px; ispod — gradijent, copy puna širina.
+- Skrol, **bez pina**: jedan ScrollTrigger (`top top → bottom top`, `scrub: true`) → 0–35 %
+  nagib ka copy-ju (+55° z, +12° x), 25–70 % `uPour` (mint front gore-desno → dole-levo,
+  ivica iskrivljena warp poljem), 55–100 % skala 1 → 0.7, drift ka centru, opacity → 0.
+  Brojevi su čista funkcija u `lib/heroChoreography.ts` (testirano). Stari CSS parallax +
+  `scale(1.2)` na omotaču canvasa su uklonjeni (upskejlovali su raster; dubinu daje `uScroll`).
+- Bleđenje bočice: tečnost i zatvarač ostaju NEPROVIDNI i blede kroz `alphaHash` — three
+  crta transmisivno staklo iz render targeta u koji ulaze samo neprovidni objekti, a
+  `transparent` tečnost bi bila odbačena iza prednje površine stakla (prvi pokušaj je tako
+  „izgubio" tečnost: bočica je bila mlečna). Staklo bledi običnim `opacity`.
+- **Scrim** iza copy kolone (`HeroScrim.tsx`): radijalni veo papira .55 → 0, 120 % kolone.
+
+### Logo putuje u navigaciju (`lib/logoTravel.ts`, `Hero.tsx`)
+
+- Isti scrub trigger; samo `transform` po izmerenim SVG pravougaonicima (wordmark u heroju
+  i onaj prikazani u `#nav-logo-slot`). **Bez Flip-a, bez pina.** Do 70 % put, 70–85 %
+  crossfade (wordmark → 0 + `visibility: hidden`, nav logo → 1).
+- Dva tweena na istom elementu: put na ekranu ide `expo.out` (naslov ide za wordmark-om
+  brzinom strane; linearni put bi mu se preklopio preko naslova ~200 px skrola), a
+  `yPercent` linearno vraća ono što strana odnese, pa se skrol član tačno skrati.
+  Izmereno na 1440: 10 % → wordmark dno 184 px, naslov vrh 345 px; 35 % → wordmark u zoni
+  trake (30–64 px); 70 % → tačno na slotu (145, 25, 88 px).
+- Ranije zamke koje su otklonjene u proveri: slot ima DVA SVG-a (mark ispod 400 px) —
+  meri se onaj sa širinom > 0; timeline traje tačno 1 (inače scrub razvuče crossfade).
+
+### Navigacija (`components/site/SiteNav.tsx` → server omotač + `SiteNavClient.tsx`)
+
+- Frosted traka (`.nav-frost`: 82 % podloge + blur 12 + linija ispod) kad prođe 85 % heroja
+  (IntersectionObserver, `ratio < .15`) i na svakoj strani bez heroja. Frost nosi unutrašnja
+  traka, ne `<nav>` (backdrop-filter na pretku bi zarobio fixed panel menija).
+- **Nađen pravi uzrok „proviruje kroz nav" na /shop:** Tailwind v4 iz `@utility` bloka
+  ISPUŠTA `backdrop-filter` — `.glass` je od početka bio samo 72 % papir bez blura (provereno
+  u isporučenom CSS-u). `.glass` i `.nav-frost` su sada obične klase u `@layer components`;
+  `getComputedStyle(bar).backdropFilter === "blur(12px)"` na /shop i na landingu posle 85 %.
+- Brojevi uz Cenovnik (144) i Shop (70) se broje na serveru iz `lib/services` i
+  `lib/products` — dva JSON-a ne ulaze u klijentski JS zbog dva broja.
+- **Mobilni meni ispočetka:** pun ekran, NEPROVIDNA podloga teme, 28 px linkovi sa brojevima,
+  „Zakažite termin", Korpa, Moj nalog, telefoni oba lokala, IG/FB (inline SVG — lucide 1.x
+  nema brend ikone), prekidač teme. GSAP: podloga klizi odozgo 320 ms, stavke stagger 45 ms;
+  izlaz 150 ms. Body + Lenis zaključani; zatvara: link, Escape, promena rute (izvedeno stanje
+  „otvoren na kojoj ruti", bez setState u efektu), hash, prelazak na ≥ 1024 px. Fokus na prvi
+  link, nazad na dugme; Tab kruži. Hamburger → X čistim CSS transformom, 44×44.
+- Ispravka usput: ikona naloga je na 390 px imala i `hidden` i `inline-flex` (pobedio
+  `inline-flex`), pa je dugme menija bilo van trake (369–413 px na 375 px širine).
+
+### ORLY sekcija (`components/sections/ShopHighlights.tsx`, `lib/swatchSpill.ts`)
+
+- `bbm-24` (promo „SAJAMSKI POPUST") je van sajta: `grep -rn "bbm-24" components app`
+  vraća samo dva komentara. `public/photos/zid-lakova-1350.avif` ne postoji → zaglavlje je
+  panel „prosutih kapi": 12 `ProductSwatch` kapi (bestseleri, naizmenično ORLY/Entity) na
+  mint-wash podlozi, naslov sekcije preko, desno na desktopu / traka ispod naslova na
+  telefonu. Kad slika stigne: zameniti `<SpillPanel>` sa `next/image` u istom omotaču.
+
+### Provera
+
+```
+npm run typecheck   ✓
+npm run lint        ✓  (nula upozorenja)
+npm test            ✓  169 testova, 11 fajlova (+25: koreografija, put loga, prosute kapi)
+npm run build       ✓  83 strane (dva pokušaja pre toga — baseline merenja — pala su na
+                        poznatom Windows flake-u 0xC0000374 u generisanju strana; kod nije
+                        uzrok, vidi korak 08; chunkovi su i tada bili kompletni)
+```
+
+Bundle (`scripts/measure-bundle.mjs` + gzip lenjih chunkova, pre → posle):
+
+| Šta | Pre | Posle | Razlika |
+| --- | --- | --- | --- |
+| `/` početni JS | 321,2 KB | 323,3 KB | **+2,1 KB** (meni + panel kapi) |
+| `/shop` početni JS | 297,7 KB | 299,2 KB | **+1,5 KB** |
+| lenji WebGL (three + hero shader + bočica) | 236,0 KB | 237,0 KB | **+1,0 KB** (granica 60 KB) |
+
+U browseru (Playwright, dev server na http://localhost:3001 — pripada paralelnoj sesiji,
+nije gašen — pravi točkić miša, svetla tema):
+
+| Provera G | 1920 | 1440 | 390 |
+| --- | --- | --- | --- |
+| `.pin-spacer` | 0 | 0 | 0 |
+| dno strane: sakriven copy / `pending` / `.reveal-word` / `data-reveal-motion=pending` | 0/0/0/0 | 0/0/0/0 | 0/0/0/0 |
+| `canvas` | 1 (1905×1080) | 1 (1425×900) | **0**, copy 20–355 od 375 px, bez prekoračenja |
+| bočica desno, nagib + mint pri skrolu | ✓ screenshot | ✓ screenshot | — |
+| logo: 0 % nav logo 0 · 70 % na slotu · 92 % wordmark `hidden`, nav logo 1 | ✓ | ✓ | klasa (nav logo 1 kad hero prođe) |
+| frost posle 85 % | ✓ | ✓ blur(12px) | ✓ |
+
+- `/shop` na 1440: `nav-frost`, `backdrop-filter: blur(12px)`, podloga alfa .82, linija
+  1 px, 1 canvas (bočica zida shopa radi i posle refaktora u `BottleModel`).
+- 390 meni: podloga `rgb(250,246,241)` neprovidna, 390×844; posle 110 ms prva stavka .34, srednja 0,
+  poslednja 0 (stagger), posle 1 s sve 1; `body.overflow=hidden` + `lenis-stopped`; točkić
+  600 px → `scrollY` 0; Escape zatvara i vraća fokus na dugme; klik „Shop" → `/shop`, meni
+  zatvoren, lock skinut.
+- **60 fps** na 1440 tokom skrola kroz ceo hero (nagib + razlivanje + izlazak + logo):
+  174 frejma u 2,88 s, medijana 16,7 ms, p95 16,9 ms, najduži razmak 17,0 ms, 0 preko 33 ms.
+  (Merenje vredi samo kad je prozor vidljiv: zaklonjen Chromium guši rAF na 1 Hz — prvo
+  `page.bringToFront()`.)
+- Konzola: 0 grešaka; jedino upozorenje je `THREE.Clock` deprecation iz R3F-a (bilo i ranije).
+
+### Šta čeka / napomene
+
+| Šta | Zašto |
+| --- | --- |
+| **Model iz Blendera** (novi spec, sekcija „MODEL IZ BLENDERA") | nije rađen u ovom koraku — vidi upozorenje gore; proceduralna bočica je fallback koji spec dozvoljava |
+| `public/photos/zid-lakova-1350.avif` | klijent generiše; dok ne stigne, panel kapi |
+| `data/site.json` → oba lokala imaju ISTI telefon `064 145 1064` | u mobilnom meniju su dva dugmeta (Ljubičica / Mimoza) sa istim brojem — **[POTVRDITI]** da li Mimoza ima svoj broj |
+| Nav je providna dok hero ne prođe 85 % (spec I) | copy prolazi ispod providnih linkova između ~40 i 85 % — isto kao pre koraka 12; ako smeta, prag je jedan broj (`HERO_LEFT_RATIO` u `SiteNavClient.tsx`) |
+| `docs/MOTION.md` → „Hero — scroll scenario" | prepisan na stvarno stanje (bez pina/Flip-a/kruga) |
+
+---
+
 Stanje posle koraka **11 — cenovnik kao ulaz u zakazivanje + swatch kao kap laka**
 (ispod je i zatečeno stanje posle koraka 08).
-Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Korak 11 — šta je dodato
 

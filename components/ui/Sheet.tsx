@@ -1,35 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { useOptionalLenis } from "@/components/providers/SmoothScroll";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useMounted } from "@/lib/useMounted";
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
-function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const m = window.matchMedia(query);
-      m.addEventListener("change", onChange);
-      return () => m.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
-}
-
-/** Portal može da se renderuje tek na klijentu — server snapshot je false. */
-const noop = () => () => {};
-function useMounted() {
-  return useSyncExternalStore(
-    noop,
-    () => true,
-    () => false,
-  );
-}
 
 export type SheetProps = {
   open: boolean;

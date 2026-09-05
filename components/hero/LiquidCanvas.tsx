@@ -3,26 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Color, Vector2, type ShaderMaterial } from "three";
+import { HeroBottle } from "@/components/three/HeroBottle";
+import { heroChoreography } from "@/lib/heroChoreography";
+import { HERO_CAMERA, type HeroDrivers } from "./heroDrivers";
 import { FRAGMENT_SHADER, HERO_PALETTE, VERTEX_SHADER } from "./liquidShader";
 
 /**
  * WebGL sloj hero sekcije. Montira se SAMO kad `components/hero/Hero.tsx` utvrdi da
- * smemo (WebGL2, desktop širina, bez prefers-reduced-motion) — vidi `useHeroWebGL`.
+ * smemo (WebGL2, desktop širina, bez prefers-reduced-motion) — vidi `lib/webgl.ts`.
  * Zato ovde nema nijedne provere sposobnosti: ako je ova komponenta na ekranu,
  * odluka je već doneta.
  *
- * Jedan `PlaneGeometry(2, 2)` u ortografskoj kameri, skaliran na veličinu kadra, pa
- * popunjava ekran bez obzira na oblik prozora. Odnos stranica ulazi u shader kroz
- * `uResolution`, da mrlje ostanu okrugle i na širokom monitoru.
+ * JEDAN canvas, jedna scena, jedna perspektivna kamera (spec 12 → A):
+ *  - shader ravan 2×2 čiji vertex shader ide pravo u NDC (puni kadar bez obzira na
+ *    kameru), bez testa dubine, `renderOrder -1` — crta se prva, kao pozadina;
+ *  - bočica (`HeroBottle`) ispred nje, samo ≥ 1024 px (`bottle` prop). Od 769 do 1023
+ *    px shader radi sam, bez bočice.
+ * Odnos stranica ulazi u shader kroz `uResolution`, da mrlje ostanu okrugle i na
+ * širokom monitoru.
  */
-
-/** Vrednosti koje hero gura u shader spolja (pointer i skrol). */
-export type HeroDrivers = {
-  /** Cilj u opsegu -1..1; shader ga stiže inercijom. */
-  readonly pointer: { current: { x: number; y: number } };
-  /** Napredak hero pin-a, 0..1. */
-  readonly scroll: { current: number };
-};
 
 /** Inercija pointera (DNA: lerp 0.06). */
 const POINTER_LERP = 0.06;
@@ -40,6 +39,7 @@ function createUniforms() {
     uTime: { value: 0 },
     uPointer: { value: new Vector2(0, 0) },
     uScroll: { value: 0 },
+    uPour: { value: 0 },
     uPalette: { value: HERO_PALETTE.map((hex) => new Color(hex)) },
     uReduced: { value: 0 },
     uResolution: { value: new Vector2(1, 1) },
@@ -51,9 +51,6 @@ type Uniforms = ReturnType<typeof createUniforms>;
 function LiquidPlane({ drivers }: { drivers: HeroDrivers }) {
   const material = useRef<ShaderMaterial>(null);
   const [initialUniforms] = useState(createUniforms);
-  // R3F drži ortografsku kameru u pikselima (left = -w/2 … right = w/2, zoom 1), pa
-  // se plane 2×2 skalira na pola širine i visine kadra i tačno ga popunjava.
-  const size = useThree((s) => s.size);
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms as Uniforms | undefined;
@@ -66,12 +63,16 @@ function LiquidPlane({ drivers }: { drivers: HeroDrivers }) {
     p.x += (target.x - p.x) * POINTER_LERP;
     p.y += (target.y - p.y) * POINTER_LERP;
 
+    // Isti lerp kao bočica, pa se razlivanje i nagib slažu frejm za frejmom.
     u.uScroll.value += (drivers.scroll.current - u.uScroll.value) * SCROLL_LERP;
+    u.uPour.value = heroChoreography(u.uScroll.value).pour;
     u.uResolution.value.set(state.size.width, state.size.height);
   });
 
   return (
-    <mesh scale={[size.width / 2, size.height / 2, 1]}>
+    // Vertex shader ignoriše kameru, pa bi frustum culling po položaju u sceni ravan
+    // pogrešno izbacio — mesh je uvek „u kadru".
+    <mesh frustumCulled={false} renderOrder={-1}>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         ref={material}
@@ -87,8 +88,8 @@ function LiquidPlane({ drivers }: { drivers: HeroDrivers }) {
 
 /**
  * Kad se crtanje vrati iz pauze (`demand`), traži jedan frejm odmah. Bez toga se na
- * ekranu ume zateći stara slika: dok je canvas mirovao, pin je promenio raspored i
- * platno je promenilo veličinu, pa deo kadra ostane nenacrtan do sledećeg frejma.
+ * ekranu ume zateći stara slika: dok je canvas mirovao, platno je promenilo veličinu,
+ * pa deo kadra ostane nenacrtan do sledećeg frejma.
  */
 function FrameGate({ active }: { active: boolean }) {
   const invalidate = useThree((s) => s.invalidate);
@@ -101,10 +102,13 @@ function FrameGate({ active }: { active: boolean }) {
 export default function LiquidCanvas({
   drivers,
   active,
+  bottle,
 }: {
   drivers: HeroDrivers;
   /** `false` kad hero izađe iz kadra ili se tab sakrije — tada se ne crta ništa. */
   active: boolean;
+  /** Bočica samo ≥ 1024 px (spec 12 → D); shader sam radi i od 769 px. */
+  bottle: boolean;
 }) {
   return (
     // Roditelj sa DEFINISANOM kutijom (`absolute inset-0` = veličina hero sekcije), a
@@ -115,17 +119,30 @@ export default function LiquidCanvas({
     // `resize={{ debounce: 0 }}` osigura remeru čim se prozor promeni.
     <div className="absolute inset-0">
       <Canvas
-        orthographic
-        camera={{ position: [0, 0, 10], zoom: 1, near: 0.1, far: 100 }}
-        dpr={[1, 1.75]}
-        gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
+        camera={{ position: [0, 0, HERO_CAMERA.distance], fov: HERO_CAMERA.fov, near: 1, far: 80 }}
+        // Budžet E: dpr do 1.5; antialias zbog ivica stakla (shader sam ga ne traži).
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         frameloop={active ? "always" : "demand"}
         resize={{ debounce: 0 }}
+        // Transmission prolaz stakla bočice crta scenu (i fBm shader) još jednom u render
+        // target; na četvrtini piksela to je +25 % umesto +100 % (budžet E). Bez bočice
+        // nema transmisivnih objekata, pa podešavanje ne košta ništa.
+        onCreated={({ gl }) => {
+          gl.transmissionResolutionScale = 0.5;
+        }}
         aria-hidden
       >
         <color attach="background" args={[HERO_PALETTE[3]]} />
         <FrameGate active={active} />
         <LiquidPlane drivers={drivers} />
+        {bottle ? (
+          <>
+            {/* Jedno key svetlo gore-desno; odsjaje daje studio okruženje u BottleModel-u. */}
+            <directionalLight position={[6, 8, 5]} intensity={1.1} />
+            <HeroBottle drivers={drivers} />
+          </>
+        ) : null}
       </Canvas>
     </div>
   );

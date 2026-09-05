@@ -1,12 +1,50 @@
 # Korak 12 — 3D bocica na desnoj strani heroja, sa scroll koreografijom
 
 ## Sta postoji
-Korak 08 je napravio proceduralnu bocicu: `components/three/bottleGeometry.ts`,
-`BottleScene.tsx` (mesh `Liquid` prima `hex`, boja se lerp-uje), `BottleShowcase.tsx`.
-Koristi se u shop heroju (`components/shop/ShopHeroBottle.tsx`). Radi.
-Klijent: "desna strana heroja je prazna — stavi tu tu 3D bocicu i neka se nesto desava
-na skrol, da se pomera, razliva". Nista nije radjeno u Blenderu i ne treba — proceduralna
-bocica je 0 bajtova mreze.
+Korak 08 je napravio PROCEDURALNU bocicu (`components/three/bottleGeometry.ts`,
+`BottleScene.tsx` sa meshom `Liquid` koji prima `hex`). Radi, ali je LatheGeometry -
+rotaciono simetricna, kao parfem. Bocica laka NIJE okrugla: zaobljeno kvadratno telo,
+tanak vrat, zdepast zatvarac. Na 62% visine heroja ta razlika se vidi.
+
+## MODEL IZ BLENDERA — headless, bez interfejsa, bez MCP-a
+Napravi `scripts/bottle.py` (bpy) i pokreni ga:
+  Windows: `& "C:\Program Files\Blender Foundation\Blender *\blender.exe" -b -P scripts/bottle.py`
+  (nadji tacnu putanju sa `Get-ChildItem "C:\Program Files\Blender Foundation"`; ako
+  nema - `where.exe blender`). Izlaz: `public/models/bocica.glb`.
+
+Geometrija (1 jedinica = 1 cm, Y gore, dno na y=0, centrirano po X/Z):
+- **Glass** — telo: zaobljeni kvadrat ~3.2 x 3.2 u osnovi, radijus uglova ~0.9, visina
+  ~5.2, gornja ivica se sazima u vrat precnika ~1.1 visine ~0.8. Solidify 0.12 (staklo ima
+  zid). Subdivision 2 nivoa, shade smooth. Materijal: Principled, transmission 1.0,
+  roughness 0.04, IOR 1.45, thickness ~0.12.
+- **Liquid** — zaseban mesh, unutrasnjost stakla skalirana 0.94, visina do 78% tela,
+  blago zaobljen gornji meniskus. Principled, base color BELA (kod menja u runtime-u),
+  roughness 0.12. Ime mesha MORA biti tacno `Liquid`.
+- **Cap** — zatvarac: cilindar precnika ~1.9, visina ~3.6, blago konusan (gornji precnik
+  ~1.7), gornja ivica zaobljena bevel 0.15. 8-12 plitkih vertikalnih zljebova za hvatanje
+  (kao pravi ORLY cap) - to daje karakter. Materijal: crna, roughness 0.35, metalness 0.1.
+- **Brush** unutar bocice NE modelovati (ne vidi se kroz obojenu tecnost).
+- Bez etikete, bez logotipa, bez teksta. Bez armature i animacija.
+- Ukupna visina ~9.6. Apply all transforms pre exporta.
+
+Bake: AO na Glass i Cap u jednu 512x512 teksturu (multiply na base color) - daje tamnu
+liniju gde zatvarac seda na vrat. Ako bake komplikuje - preskoci, nije kriticno.
+
+Export: `bpy.ops.export_scene.gltf(filepath=..., export_format='GLB',
+export_draco_mesh_compression_enable=True, export_yup=True, export_apply=True,
+export_cameras=False, export_lights=False, export_animations=False)`
+
+Provera fajla: `npx gltf-transform inspect public/models/bocica.glb` -
+<= 40k trouglova, <= 500 KB, meshevi Glass / Liquid / Cap postoje pod tim imenima.
+
+Ucitavanje: drei `useGLTF` sa Draco dekoderom. Dekoder kopiraj u `public/draco/` iz
+`node_modules/three/examples/jsm/libs/draco/gltf/` i pokazi `useGLTF.preload` na njega -
+ne oslanjaj se na CDN. Boju tecnosti postavlja kod: nadji mesh po imenu `Liquid` i
+lerp-uj `material.color` na hex - ista logika kao u BottleScene.tsx.
+
+**FALLBACK JE OBAVEZAN:** ako Blender nije nadjen, skripta padne, ili inspect ne prolazi
+budzet posle 2 pokusaja - koristi PROCEDURALNU bocicu iz koraka 08 i upisi u
+docs/STATUS.md zasto. Hero ne sme da ceka na Blender.
 
 ## A. JEDAN CANVAS, NE DVA
 Hero vec ima R3F canvas sa shaderom (plane). Bocica ide u ISTI canvas:
@@ -105,6 +143,7 @@ Zameni sa placeholder-om dok ne stigne generisana slika:
 2. na 1920: bocica vidljiva desno, pri skrolu se naginje i pozadina se puni mint bojom
 3. na 390: canvas ne postoji, copy puna sirina, nista ne viri
 4. `document.querySelectorAll('canvas').length === 1` na desktopu
+4b. ako je GLB: `gltf-transform inspect` prolazi budzet; bocica ima kvadratno zaobljeno telo, ne okruglo
 5. logo putuje u nav bez pin-spacer-a; posle 85% hero wordmark je skriven, nav logo vidljiv
 6. /shop: nav ima frosted podlogu, nista ne proviruje kroz nju
 7. 390 px: mobilni meni neprovidan, linkovi ulaze stagger, body ne skroluje dok je otvoren
