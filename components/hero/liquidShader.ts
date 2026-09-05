@@ -94,31 +94,43 @@ export const FRAGMENT_SHADER = /* glsl */ `
     );
     float f = fbm(p + 1.25 * r * warp);
 
-    float n = clamp(f * 0.62 + 0.5, 0.0, 1.0);
+    // Veći nagib = širi opseg n (jači kontrast); centar ostaje 0.5.
+    float n = clamp(f * 0.85 + 0.5, 0.0, 1.0);
 
-    // Paleta iz design-dna: mint → mint-soft → rose-soft → paper.
-    vec3 col = mix(uPalette[0], uPalette[1], smoothstep(0.00, 0.52, n));
-    col = mix(col, uPalette[2], smoothstep(0.46, 0.80, n));
-    col = mix(col, uPalette[3], smoothstep(0.74, 1.00, n));
+    // Paleta iz design-dna: mint → mint-soft → rose-soft → paper. Prag mint→mint-soft je
+    // pomeren naviše (0.35) da zasićeni mint drži donju polovinu polja umesto da odmah
+    // pređe u skoro-belo; papir ostaje samo na vrhu (n>0.92), inače se cela površina
+    // proseči u krem i mint se izgubi.
+    vec3 col = mix(uPalette[0], uPalette[1], smoothstep(0.35, 0.82, n));
+    col = mix(col, uPalette[2], smoothstep(0.70, 0.92, n));
+    col = mix(col, uPalette[3], smoothstep(0.92, 1.00, n));
 
-    // Mokri sjaj: jedan uzan pojas koji lenjo klizi dijagonalno preko polja.
+    // Mokri sjaj: jedan uzan pojas koji lenjo klizi dijagonalno preko polja. Jači, sa
+    // podignutim podom (0.5) da se vidi i preko mint zona — mora da se čita kao mokar lak.
     float band = dot(p, normalize(vec2(0.82, 0.57))) * 1.5 + length(r) * 0.5 - t * 0.42;
     float ridge = 1.0 - abs(fract(band * 0.5) * 2.0 - 1.0);
-    float spec = pow(clamp(ridge, 0.0, 1.0), 9.0);
-    col += spec * 0.26 * (0.35 + 0.65 * n) * warp;
+    float spec = pow(clamp(ridge, 0.0, 1.0), 8.0);
+    col += spec * 0.55 * (0.5 + 0.5 * n) * warp;
 
-    // Ivice se povlače u boju papira.
-    float edge = smoothstep(0.42, 1.10, length(p));
-    col = mix(col, uPalette[3], edge * 0.55);
+    // Ivice se blago povlače u papir — slabije i dalje od centra, da mrlja zadrži boju.
+    float edge = smoothstep(0.62, 1.20, length(p));
+    col = mix(col, uPalette[3], edge * 0.30);
 
     /*
      * Čitljiva površina ispod copy-ja: široki meki veo boje papira, pomeren ulevo,
      * tamo gde stoje wordmark, naslov i dugmad. Bez njega naslov sedi na šarenoj
-     * podlozi i kontrast padne ispod AA.
+     * podlozi i kontrast padne ispod AA. Desna polovina kadra nema veo — tamo mint
+     * ostaje pun.
      */
     vec2 d = (vUv - vec2(0.30, 0.46)) / vec2(0.74, 0.64);
     float veil = 1.0 - smoothstep(0.0, 1.0, length(d));
-    col = mix(col, uPalette[3], veil * 0.62);
+    col = mix(col, uPalette[3], veil * 0.50);
+
+    // Završni lift (linearni prostor, pre colorspace_fragment): zasićenost pa kontrast,
+    // da mint i rose izađu iz skoro-belog. Paleta je inače po konstrukciji izbeljena.
+    float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(vec3(luma), col, 1.35);
+    col = clamp((col - 0.5) * 1.12 + 0.5, 0.0, 1.0);
 
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>

@@ -3,14 +3,20 @@
 import { useEffect } from "react";
 import { TEXT_REVEAL } from "@/constants/textRevealConfig";
 import { revealWords } from "@/lib/textReveal";
+import { gsap } from "@/lib/gsap";
 
 /**
  * Site-wide otkrivanje copy-ja (Sistem 1 iz docs/MOTION.md). Montira se jednom u
  * Providers i ne renderuje ništa.
  *
- * Jedan IntersectionObserver (root skraćen odozdo za enterRatio) pali svaki element
- * tačno jednom, 15% u viewport-u. MutationObserver hvata copy koji stigne kasnije.
- * prefers-reduced-motion → tekst se pojavi odmah, bez blur-a i pomeranja.
+ * `hideCss()` sakrije svaki copy-kandidat na `opacity:0` pre prvog paint-a. Ovaj
+ * modul je JEDINI koji ga vraća — zato mora da garantuje da NIŠTA ne ostane sakriveno
+ * (docs/MOTION.md, .nightrun/specs/09-popravke.md A1: „bolje bez animacije nego nevidljivo").
+ *
+ * Otkrivanje je odvezano od IntersectionObserver-a: IO je optimizacija (lep, animiran
+ * ulaz), a garanciju daje `sweep()` na čistoj geometriji (`getBoundingClientRect`),
+ * nezavisan od IO async-isporuke, Lenis smooth-skrola i pinovanog heroja. `fire` je
+ * idempotentan, pa IO i sweep ne mogu dva puta da otkriju isti element.
  *
  * Ne dodavati drugu animaciju opacity-ja na tekst — vidi .claude/skills/text-reveal.
  */
@@ -20,11 +26,13 @@ export function TextRevealGlobal() {
     const seen = new WeakSet<Element>();
     const waiting = new Set<HTMLElement>();
 
-    const fire = (el: HTMLElement) => {
+    // `force` = odmah, bez animacije (element je prošao ili je fallback poslednje šanse).
+    const fire = (el: HTMLElement, force = false) => {
+      if (!waiting.has(el)) return; // već otkriven — IO/sweep/ticker se ne biju
       waiting.delete(el);
       io.unobserve(el);
       // settle: posle ulaza reči se vraćaju u običan tekst (bez .reveal-word omotača)
-      revealWords(el, { instant: reduced, settle: true });
+      revealWords(el, { instant: force || reduced, settle: true });
     };
 
     const io = new IntersectionObserver(
@@ -57,37 +65,74 @@ export function TextRevealGlobal() {
     scan(document.body);
 
     /**
-     * Copy u poslednjih 15% poslednjeg ekrana (podnožje) nikada ne pređe skraćeni
-     * root — strana više nema kuda da se skroluje. Kad se stigne do dna, pusti sve
-     * što je vidljivo, da ništa ne ostane sakriveno.
+     * Sigurnosna mreža — jedini garant vidljivosti. Za svaki `waiting` element,
+     * po čistoj geometriji:
+     *  - prošao IZNAD kadra (`bottom < 0`) → odmah, bez animacije,
+     *  - ušao 15% u kadar (`top < enterLine`) → animirano (isti prag kao IO, ali vodi
+     *    ga sweep a ne async IO isporuka koju Lenis/pin ume da preskoči),
+     *  - na dnu strane (nema više kuda) → sve što je vidljivo, jer poslednjih 15%
+     *    nikad ne pređe skraćeni root.
+     * Redosled je DOM redosled (scan) → čitanje odozgo nadole.
      */
-    const flushAtBottom = () => {
+    const sweep = () => {
+      if (!waiting.size) return;
+      const h = window.innerHeight;
+      const enterLine = h * (1 - TEXT_REVEAL.enterRatio);
       const doc = document.documentElement;
-      if (window.scrollY + window.innerHeight < doc.scrollHeight - 2) return;
+      const atBottom = window.scrollY + h >= doc.scrollHeight - 2;
       for (const el of [...waiting]) {
         const r = el.getBoundingClientRect();
-        if (r.top < window.innerHeight && r.bottom > 0) fire(el);
+        if (r.bottom < 0) fire(el, true);
+        else if (r.top < enterLine && r.bottom > 0) fire(el);
+        else if (atBottom && r.top < h && r.bottom > 0) fire(el);
       }
     };
 
-    /**
-     * Brz skrol (flick na telefonu, `scrollTo` u testu) ume da element ubaci i izbaci
-     * iz kadra između dve isporuke IntersectionObserver-a — tada `isIntersecting` u
-     * trenutku isporuke već stoji na false i copy ostane sakriven zauvek.
-     * Sve što je otišlo IZNAD kadra, a nije okinulo, pušta se odmah.
-     */
-    const flushPassed = () => {
+    /** Poslednja šansa: sve što je dotaklo kadar (`top < innerHeight`) → odmah. */
+    const sweepForce = () => {
+      if (!waiting.size) return;
+      const h = window.innerHeight;
       for (const el of [...waiting]) {
-        if (el.getBoundingClientRect().bottom < 0) fire(el);
+        if (el.getBoundingClientRect().top < h) fire(el, true);
       }
     };
 
+    // scroll → sweep, throttlovan na jedan poziv po frejmu
+    let rafScheduled = false;
     const onScroll = () => {
-      flushPassed();
-      flushAtBottom();
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(() => {
+        rafScheduled = false;
+        sweep();
+      });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", flushAtBottom);
+    window.addEventListener("resize", sweep);
+    window.addEventListener("orientationchange", sweep);
+
+    /**
+     * Hardening: deljeni gsap.ticker (isti RAF koji vozi Lenis) prolazi sweep ~8 Hz
+     * DOK ima nečeg u `waiting` — pokriva slučaj da native `scroll` ne stigne pod
+     * Lenis-om. Kad se `waiting` isprazni, rana provera ga svede na nulu troška.
+     */
+    let lastTick = 0;
+    const onTick = () => {
+      if (!waiting.size) return;
+      const now = performance.now();
+      if (now - lastTick < 120) return;
+      lastTick = now;
+      sweep();
+    };
+    gsap.ticker.add(onTick);
+
+    // load: layout je slegao (fontovi, slike) → još jedan animiran prolaz
+    const onLoad = () => sweep();
+    if (document.readyState === "complete") sweep();
+    else window.addEventListener("load", onLoad);
+
+    // 3 s posle učitavanja: svaki pending iznad preloma se otkriva odmah (spec A1)
+    const forceTimer = window.setTimeout(sweepForce, 3000);
 
     const mo = new MutationObserver((records) => {
       for (const record of records) {
@@ -102,8 +147,12 @@ export function TextRevealGlobal() {
       io.disconnect();
       mo.disconnect();
       waiting.clear();
+      gsap.ticker.remove(onTick);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", flushAtBottom);
+      window.removeEventListener("resize", sweep);
+      window.removeEventListener("orientationchange", sweep);
+      window.removeEventListener("load", onLoad);
+      window.clearTimeout(forceTimer);
     };
   }, []);
 

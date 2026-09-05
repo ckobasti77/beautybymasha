@@ -53,7 +53,19 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
     gsap.ticker.lagSmoothing(0);
     lenisRef.current = instance;
 
+    /*
+     * Ulazi sekcija (components/motion/Reveal.tsx) mere `start`/`end` pre nego što
+     * hero pin ubaci `.pin-spacer` i pre nego što slike / Convex podaci slegnu visinu.
+     * Bez ovog refresh-a triger sekcija ISPOD pina dobije pogrešnu poziciju i nikad ne
+     * okine → kontejner ostane `opacity:0`. Refresh na `load` preračuna sve pozicije
+     * sa pin-spacer-om; `onRefresh` re-check u Reveal-u tada pusti sve iznad skrola.
+     */
+    const refresh = () => ScrollTrigger.refresh();
+    if (document.readyState === "complete") refresh();
+    else window.addEventListener("load", refresh);
+
     return () => {
+      window.removeEventListener("load", refresh);
       gsap.ticker.remove(tick);
       instance.destroy();
       lenisRef.current = null;

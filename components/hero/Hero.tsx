@@ -131,8 +131,9 @@ export function Hero() {
 
         const tl = gsap.timeline({ defaults: { ease: "none" } });
 
-        // 15–60%: copy se povlači, wordmark leti u navigaciju i tamo se predaje logu.
-        tl.to(copy, { opacity: 0, y: -48, duration: 0.4 }, 0.15);
+        // 5–34%: copy se povlači, wordmark leti u navigaciju i predaje se logu. Flip je
+        // gotov do ~35% pina — klijent je dug pin (110%) zvao „scrolling tango".
+        tl.to(copy, { opacity: 0, y: -48, duration: 0.22 }, 0.05);
         if (navLogo) {
           tl.to(
             wordmark,
@@ -140,27 +141,23 @@ export function Hero() {
               x: () => measure().x,
               y: () => measure().y,
               scale: () => measure().scaleX,
-              duration: 0.42,
+              duration: 0.28,
             },
-            0.15,
+            0.05,
           );
-          tl.to(wordmark, { opacity: 0, duration: 0.1 }, 0.5);
-          tl.fromTo(navLogo, { opacity: 0 }, { opacity: 1, duration: 0.12 }, 0.5);
+          tl.to(wordmark, { opacity: 0, duration: 0.05 }, 0.29);
+          tl.fromTo(navLogo, { opacity: 0 }, { opacity: 1, duration: 0.07 }, 0.27);
         }
 
-        // 60–100%: podloga se skuplja u krug iz logotipa i predaje ekran sekciji Usluge.
-        tl.fromTo(
-          visual,
-          { clipPath: "circle(140% at 50% 45%)" },
-          { clipPath: "circle(13% at 50% 45%)", scale: 0.78, duration: 0.34 },
-          0.6,
-        );
-        tl.to(visual, { opacity: 0, duration: 0.1 }, 0.9);
+        // 35–100%: NIŠTA ne odlazi iz kadra. Shader ostaje pun ekran uz blagi scale i svoj
+        // `uScroll` parallax (hrani ga onUpdate), pa tokom celog (kratkog) pina uvek ima
+        // nečeg živog. Ranije se ovde skupljao u sićušan krug i gasio → tri ekrana prazne kreme.
+        tl.fromTo(visual, { scale: 1.0 }, { scale: 1.06, duration: 0.65 }, 0.35);
 
         const trigger = ScrollTrigger.create({
           trigger: root,
           start: "top top",
-          end: "+=110%",
+          end: "+=60%",
           pin: true,
           pinSpacing: true,
           scrub: 1,
@@ -179,7 +176,7 @@ export function Hero() {
              * callback timeline-a, da stanje bude tačno i posle refresh-a i posle
              * učitavanja strane na sredini skrola.
              */
-            copy.style.display = self.progress >= 0.55 ? "none" : "";
+            copy.style.display = self.progress >= 0.29 ? "none" : "";
           },
         });
 
