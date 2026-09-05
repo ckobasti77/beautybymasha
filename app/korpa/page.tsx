@@ -17,7 +17,7 @@ export default function CartPage() {
   return (
     <>
       <SiteNav alwaysSolid />
-      <main className="pt-16 md:pt-20">
+      <main id="sadrzaj" className="pt-16 md:pt-20">
         <Section>
           <SectionHeading as="h1" eyebrow="Korpa" title="Šta nosite kući" />
           <CartView />

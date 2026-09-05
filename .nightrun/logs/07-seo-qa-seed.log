@@ -1,30 +1,32 @@
-﻿Admin panel is done. Dev server is off, port 3001 free.
+﻿Gotovo. Dev server je ugašen, ništa nije deployovano, ništa nije commitovano.
 
-**Previous step check (first 10 min):** typecheck, lint, and prod were all clean — nothing to fix. `/zakazivanje` returning 404 in prod is correct; the booking wizard is an anchor on the landing page, not a route.
+## Provera prethodnog koraka
+`typecheck` i `lint` su prošli pre ijedne izmene, prod je bio 200 na `/`, `/shop`, `/nalog`. Korak 06 nije ostavio ništa slomljeno — prešao sam odmah na svoj zadatak.
 
-## What shipped
+## Šta je urađeno
 
-All 12 tabs from `docs/ADMIN.md`, ~5.300 lines across `components/admin/` + `app/admin/`. The four load-bearing ones:
+**Seed** — `convex/seedDemo.ts` + `npm run seed` / `npm run seed:clear`. 14 termina kroz tekuću nedelju (oba lokala, sva tri resursa, utorak ima tri manikira u 10:00 da se vide trake kapaciteta, ponedeljak nema Mimozu), 5 porudžbina po jedna u svakom statusu, jedna sa loyalty popustom, 3 člana sa istorijom, 2 poruke. Datumi od `startOfWeek(belgradeNow())`, ništa zakucano. Demo se prepoznaje po telefonu `0641230xxx` i imejlu `demo.beautybymasha.rs`, pa `clear` briše tačno to i ništa drugo. Provereno `run → run → clear → run`: isto stanje, clear vratio 14/5/3/3/2.
 
-- **Danas** — summary line, location switch, day grouped by resource, tap → sheet with Pozovi/Viber/Pomeri/Otkaži, revenue in three figures, no chart.
-- **Kalendar** — week per location with **lanes per resource**; overlapping bookings split the lane width (three manicures at 10:00 are three narrow blocks). Phone shows one day + week strip with swipe; `lg+` shows the full week. Tap empty space writes a booking or a break.
-- **Proizvodi** — the import: file → column mapping (auto-guessed) → 20-row preview → `3 ažurirano · 1 novo · 1 preskočeno` with reasons. Plus CSV export, bulk price/discount/visibility, mass image upload matched by filename.
-- **Loyalty** — search by card/name/phone/email, QR scanner with manual entry as a full equal fallback, `Iskoristi 10%`.
+Logika `admin.init`/`seedShop` je izvučena u `convex/lib/seed.ts` da je zovu i panel i seed — ponašanje panela nepromenjeno.
 
-## Two bugs the browser pass caught
+**SEO** — dva `BeautySalon` entiteta sa različitim `@id`, adresom i radnim vremenom. Mimoza ponedeljkom ide kao `00:00–00:00` (Schema.org zapis za zatvoreno; preskočen dan Google čita kao „ne znamo"). Plus `Organization`, `WebSite`, `sitemap.ts`, `robots.ts`, `opengraph-image.tsx` iz `LogoMark`, `/nalog` prebačen na noindex. 9 novih testova.
 
-1. **`xlsx` was eating Serbian prices.** With `raw: true` it parsed `2.190,00` as **2,19** — the whole price list would have silently gone two-digit. Fixed with `raw: false`, covered by tests.
-2. **Catalog entry ran 1,5 s** over 70 cards, past the MOTION.md ceiling, leaving cards at `opacity: 0`. `AdminReveal` now uses `stagger: { amount }`.
+**A11y/perf** — skip-link (prvi Tab, 44 px, `#sadrzaj` na svakom `<main>`), mint nigde kao tekst, reveal-provera prazna na `/` i `/shop` na 1440 i 390 px. `three` **nije** u početnom bundle-u: naslovna je 305 KB gzip, chunkovi sa `three` se u njenoj `<script>` listi ne pojavljuju, na 390 px 0 canvas elemenata.
 
-Verified end to end against live dev Convex with a real spreadsheet: prices landed as 2190/2290/1850, the priceless row was skipped with a reason, and an **empty stock cell did not overwrite the existing value**. Test data purged, catalog restored.
+**Dokumenti** — README (bio boilerplate), `docs/HANDOVER.md` za vlasnicu, `docs/STATUS.md` sa potpunim popisom `[POTVRDITI]`. Secrets: čisto, `.env*` ignorisan, nijedan pravi ključ u praćenim fajlovima.
 
-## One deviation you should read
+## Dve stvari koje sam našao, a nisam dirao
 
-The spec asks for server-side protection on `/admin`. You get `noindex` from the server plus `assertAdmin`/`assertStaff` on every single query and mutation — no data reaches an unauthorized client either way. True SSR gating needs swapping `ConvexAuthProvider` for `ConvexAuthNextjsProvider` + middleware, which moves the token from localStorage to cookies and touches the sign-in flow step 05 verified working. I didn't do that mid-step; it's written up in `docs/STATUS.md` as its own task.
+1. **Produkcija nema `JWT_PRIVATE_KEY` ni `JWKS`** (`convex env list --prod` daje samo ADMIN_KEY, OWNER_EMAIL, SITE_URL). Bez njih se na prod-u niko ne može prijaviti — ni kupac ni vlasnica. To je izmena na produkciji, pa je ostavljena tebi: `npx @convex-dev/auth --prod`, iz Bash-a ne PowerShell-a.
+2. **Produkciona baza je prazna** — sve večerašnje je na dev deployment-u. `npm run seed -- --prod`, pa `seed:clear -- --prod` pre nego što panel ode njoj.
 
-Also open: `OWNER_EMAIL` isn't set on dev or prod — set it before handing her the panel, or she can't become admin. And `data/site.json` has "Ljubicica" without diacritics, visible on the public site too; I left `data/*.json` alone since another session edits those.
+Usput sam ispravio `Ljubicica` → `Ljubičica` u `data/site.json` (videlo se na sajtu), i `seedCore` sada sinhronizuje ime lokala u bazi.
 
-Checks: `convex dev --once`, `typecheck`, `lint` (zero warnings), `116 tests`, `build` — all pass. Zero horizontal overflow and zero invisible text on all 12 tabs at both widths.
+## Završna provera
+```
+npx convex dev --once ✓   typecheck ✓   lint ✓   test ✓ 125/7   build ✓ 83 strane
+```
+Build je jednom pao sa `worker exited with code: 3221226356` — poznata Windows flake iz ranijih koraka; `rm -rf .next` pa ponovo prošao na istom kodu.
 
 
 ===== PROVERA: convex =====
@@ -33,7 +35,7 @@ Checks: `convex dev --once`, `typecheck`, `lint` (zero warnings), `116 tests`, `
 ▌ └─ https://grand-bandicoot-904.eu-west-1.convex.cloud
 - Preparing Convex functions...
 
-[32m✔[39m 07:24:56 Convex functions ready! (1.05s)
+[32m✔[39m 07:49:03 Convex functions ready! (1.19s)
 
 ===== PROVERA: typecheck =====
 
@@ -56,9 +58,10 @@ Checks: `convex dev --once`, `typecheck`, `lint` (zero warnings), `116 tests`, `
 [1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90mC:/Users/admin/Desktop/Web Dev Projects/beautybymasha[39m
 
  [32m✓[39m lib/slots.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m lib/cart.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m components/admin/tabs/importFormat.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m components/admin/tabs/importFormat.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/jsonLd.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/cart.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 16[2mms[22m[39m
 [90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mkapacitet[2m > [22m[2mtri manikira u 10:00 prolaze, ČETVRTI pada
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
@@ -122,7 +125,7 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 [90mstdout[2m | convex/shop.test.ts
 [22m[39mnotify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-0001)
 
- [32m✓[39m convex/shop.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 660[2mms[22m[39m
+ [32m✓[39m convex/shop.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 657[2mms[22m[39m
 [90mstdout[2m | convex/bookings.test.ts
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 
@@ -165,12 +168,12 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 [90mstdout[2m | convex/bookings.test.ts
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 
- [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 734[2mms[22m[39m
+ [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 763[2mms[22m[39m
 
-[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
-[2m      Tests [22m [1m[32m116 passed[39m[22m[90m (116)[39m
-[2m   Start at [22m 07:25:08
-[2m   Duration [22m 1.38s[2m (tests 42%, import 35%, transform 19%, environment 2%, worker 1%)[22m
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m125 passed[39m[22m[90m (125)[39m
+[2m   Start at [22m 07:49:15
+[2m   Duration [22m 1.39s[2m (tests 41%, import 33%, transform 23%, environment 2%, worker 1%)[22m
 
 
 ===== PROVERA: build =====
@@ -180,18 +183,18 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 22ms
+✓ Running next.config.ts took 23ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 2.5s
+✓ Compiled successfully in 3.3s
   Running TypeScript ...
   Finished TypeScript in 1755ms ...
-  Collecting page data using 13 workers ...
-  Generating static pages using 13 workers (0/80) ...
-  Generating static pages using 13 workers (20/80) 
-  Generating static pages using 13 workers (40/80) 
-  Generating static pages using 13 workers (60/80) 
-✓ Generating static pages using 13 workers (80/80) in 1112ms
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/83) ...
+  Generating static pages using 15 workers (20/83) 
+  Generating static pages using 15 workers (41/83) 
+  Generating static pages using 15 workers (62/83) 
+✓ Generating static pages using 15 workers (83/83) in 850ms
   Finalizing page optimization ...
 
 Route (app)
@@ -202,35 +205,20 @@ Route (app)
 ├ ○ /icon
 ├ ○ /korpa
 ├ ○ /nalog
+├ ○ /opengraph-image
 ├ ○ /placanje
 ├ ○ /porudzbina
+├ ○ /robots.txt
 ├ ○ /shop
-└   /shop/[slug]
-  ├ ● /shop/vintage
-  ├ ● /shop/gumdrop
-  ├ ● /shop/kiss-the-bride
-  └ ● [+67 more paths]
+├   /shop/[slug]
+│ ├ ● /shop/vintage
+│ ├ ● /shop/gumdrop
+│ ├ ● /shop/kiss-the-bride
+│ └ ● [+67 more paths]
+└ ○ /sitemap.xml
 
 
 ○  (Static)   prerendered as static content
 ●  (SSG)      prerendered as static HTML (uses generateStaticParams)
 ƒ  (Dynamic)  server-rendered on demand
 
-
-===== DEPLOY: korak 6 =====
-▌ Deploying code to deployment:
-▌ [Production] ckobasti77:beautybymasha:production (prod) (dashboard: https://dashboard.convex.dev/t/ckobasti77/beautybymasha/good-swordfish-571)
-▌ └─ https://good-swordfish-571.eu-west-1.convex.cloud
-- Deploying to https://good-swordfish-571.eu-west-1.convex.cloud...
-
-[32m✔[39m No indexes are deleted by this push
-Uploading functions to Convex...
-Generating TypeScript bindings...
-Running TypeScript...
-Pushing code to your Convex deployment...
-Schema validation complete.
-Finalizing push...
-✔ Added table indexes:
-  [+] gallery.by_order   order, _creationTime
-✔ Deployed Convex functions to https://good-swordfish-571.eu-west-1.convex.cloud
-PROD OK 200 posle 30s cekanja

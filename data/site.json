@@ -22,11 +22,11 @@
   "locations": [
     {
       "key": "ljubicica",
-      "name": "Ljubicica",
-      "fullName": "Beauty by Masha - Ljubicica",
+      "name": "Ljubičica",
+      "fullName": "Beauty by Masha — Ljubičica",
       "address": {
         "street": "Jurija Gagarina 14z, lok 1",
-        "building": "zgrada Ljubicica",
+        "building": "zgrada Ljubičica",
         "area": "Belville, Blok 67",
         "city": "11070 Novi Beograd"
       },
@@ -99,7 +99,7 @@
     {
       "key": "mimoza",
       "name": "Mimoza",
-      "fullName": "Beauty by Masha - Mimoza",
+      "fullName": "Beauty by Masha — Mimoza",
       "address": {
         "street": "Jurija Gagarina 14i, lok 1",
         "building": "zgrada Mimoza",

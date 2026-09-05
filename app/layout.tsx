@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Manrope, Sacramento } from "next/font/google";
 import { Providers } from "@/components/providers/Providers";
+import { SkipLink } from "@/components/site/SkipLink";
 import { hideCss } from "@/constants/textRevealConfig";
 import { darkTheme, palette } from "@/lib/palette";
 import { site } from "@/lib/site";
@@ -38,6 +39,8 @@ export const metadata: Metadata = {
   },
   description: site.tagline,
   alternates: { canonical: "/" },
+  applicationName: site.name,
+  authors: [{ name: site.legalName, url: site.url }],
   openGraph: {
     siteName: site.name,
     title: site.name,
@@ -45,6 +48,13 @@ export const metadata: Metadata = {
     locale: "sr_RS",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: site.name,
+    description: site.tagline,
+  },
+  robots: { index: true, follow: true },
+  formatDetection: { telephone: true, address: false, email: false },
 };
 
 export const viewport: Viewport = {
@@ -74,6 +84,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <style dangerouslySetInnerHTML={{ __html: hideCss() }} />
       </head>
       <body className="flex min-h-full flex-col">
+        <SkipLink />
         <Providers>{children}</Providers>
       </body>
     </html>

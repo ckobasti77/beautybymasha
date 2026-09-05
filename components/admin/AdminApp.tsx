@@ -63,7 +63,7 @@ export function AdminApp() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main data-reveal="off" className="mx-auto w-full max-w-3xl px-4 py-10">
+    <main id="sadrzaj" data-reveal="off" className="mx-auto w-full max-w-3xl px-4 py-10">
       {children}
     </main>
   );
@@ -126,7 +126,7 @@ function SignedIn({
     <ToastHost>
       <div data-reveal="off" className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-6 lg:px-8 lg:py-8 xl:max-w-[1500px]">
         <AdminSidebar tabs={tabs} active={active} badges={badges} onSelect={onSelect} />
-        <main className="min-w-0 flex-1 pb-24 lg:pb-8">
+        <main id="sadrzaj" className="min-w-0 flex-1 pb-24 lg:pb-8">
           <TabBody tab={active} adminKey={adminKey} isAdmin={isAdmin} />
         </main>
       </div>

@@ -9,6 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "seed": "convex run seedDemo:run",
+    "seed:clear": "convex run seedDemo:clear",
     "assets": "node scripts/fetch-assets.mjs",
     "swatches": "node scripts/extract-swatches.mjs"
   },

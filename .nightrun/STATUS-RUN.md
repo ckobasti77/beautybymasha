@@ -9,3 +9,4 @@ Model: opus | Koraci: 2-8 | Timeout po koraku: 75 min
 | 3 | 03-backend-shop-auth-loyalty | OK | 17.9 min | 0 |
 | 4 | 04-landing-i-zakazivanje | OK | 41.4 min | 0 |
 | 5 | 05-shop-korpa-nalog | OK | 36.1 min | 0 |
+| 6 | 06-admin-panel | OK | 40.3 min | 0 |

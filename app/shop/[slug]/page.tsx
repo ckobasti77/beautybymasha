@@ -81,7 +81,7 @@ export default async function ProductPage({ params }: PageProps<"/shop/[slug]">)
       />
 
       <SiteNav alwaysSolid />
-      <main className="pt-16 md:pt-20">
+      <main id="sadrzaj" className="pt-16 md:pt-20">
         <Section>
           <nav aria-label="Putanja" className="flex flex-wrap items-center gap-1 text-caption text-fg-muted">
             <Link href="/shop" className="rounded-sm underline-offset-4 hover:text-fg hover:underline focus-ring">

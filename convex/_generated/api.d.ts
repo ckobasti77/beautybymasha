@@ -22,6 +22,7 @@ import type * as lib_admin from "../lib/admin.js";
 import type * as lib_availability from "../lib/availability.js";
 import type * as lib_emailOtp from "../lib/emailOtp.js";
 import type * as lib_loyalty from "../lib/loyalty.js";
+import type * as lib_seed from "../lib/seed.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as locations from "../locations.js";
 import type * as loyalty from "../loyalty.js";
@@ -29,6 +30,7 @@ import type * as notify from "../notify.js";
 import type * as orders from "../orders.js";
 import type * as products from "../products.js";
 import type * as schedules from "../schedules.js";
+import type * as seedDemo from "../seedDemo.js";
 import type * as services from "../services.js";
 import type * as settings from "../settings.js";
 
@@ -53,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "lib/availability": typeof lib_availability;
   "lib/emailOtp": typeof lib_emailOtp;
   "lib/loyalty": typeof lib_loyalty;
+  "lib/seed": typeof lib_seed;
   "lib/validate": typeof lib_validate;
   locations: typeof locations;
   loyalty: typeof loyalty;
@@ -60,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   orders: typeof orders;
   products: typeof products;
   schedules: typeof schedules;
+  seedDemo: typeof seedDemo;
   services: typeof services;
   settings: typeof settings;
 }>;

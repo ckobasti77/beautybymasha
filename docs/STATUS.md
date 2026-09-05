@@ -1,7 +1,7 @@
 # STATUS
 
-Stanje posle koraka **06 — admin panel**.
-Ovaj fajl je za sledeći korak: šta radi, šta još nije podešeno, šta treba pitati vlasnicu.
+Stanje posle koraka **07 — SEO, demo podaci, pristupačnost, performanse, priprema za deploy**.
+Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Provera koja prolazi
 
@@ -9,132 +9,299 @@ Ovaj fajl je za sledeći korak: šta radi, šta još nije podešeno, šta treba 
 npx convex dev --once   ✓
 npm run typecheck       ✓
 npm run lint            ✓  (nula upozorenja)
-npm test                ✓  116 testova, 6 fajlova
-npm run build           ✓  80 strana; /admin je dinamičan (ƒ), kako i treba
+npm test                ✓  125 testova, 7 fajlova  (+9 novih za JSON-LD)
+npm run build           ✓  83 strane; /admin dinamičan (ƒ), sitemap.xml i robots.txt statični
 ```
 
-Provera reveal-a iz `docs/MOTION.md` vraća **prazan niz** na svih 12 tabova panela,
-na 390 px i na 1440 px. `[data-reveal-state="pending"]` je prazan, `.reveal-word` je 0,
-horizontalnog prekoračenja nema (0 px na svakom tabu).
-
-Produkcija https://beautybymasha-mu.vercel.app je bila HTTP 200 na početku koraka
-(`/`, `/shop`, `/nalog`). `/zakazivanje` vraća 404 — to je ispravno, čarobnjak je
-sidro na landingu (`/#zakazivanje`), ne zasebna ruta. Korak 05 nije ostavio ništa
-slomljeno: `typecheck` i `lint` su prošli pre ijedne izmene.
+Provera otkrivanja teksta iz `docs/MOTION.md` vraća **prazan niz** — na `/` i `/shop`,
+na 1440 px i na 390 px. `[data-reveal-state="pending"]` je 0, `.reveal-word` je 0,
+horizontalnog prekoračenja nema (0 px). Shader se na 1440 px pojavljuje (1 `<canvas>`),
+na 390 px ga nema (0) — kako i treba.
 
 **Napomena o `npm run build` (i dalje važi):** na Windows-u ume da padne sa
-`build worker exited with code: 3221226356`. To je pad radnog procesa, ne greška u kodu.
+`build worker exited with code: 3221226356`. To je pad radnog procesa, ne greška u kodu —
+desilo se i večeras, jednom, na istom kodu koji je odmah zatim prošao.
 `rm -rf .next && npm run build` prolazi.
 
-## Šta korak 06 dodaje
+## Prethodni korak (06) nije ostavio ništa slomljeno
+
+`typecheck` i `lint` su prošli pre ijedne izmene. Produkcija
+https://beautybymasha-mu.vercel.app je bila HTTP 200 na `/`, `/shop` i `/nalog`.
+`/kontakt` vraća 404 — to je ispravno, kontakt je podnožje landinga (`/#kontakt`),
+ne zasebna ruta.
+
+---
+
+# ⚠ Blokira predaju — pročitati prvo
+
+## 1. Produkcija nema ključeve za prijavu
+
+`npx convex env list --prod` pokazuje samo `ADMIN_KEY`, `OWNER_EMAIL` i `SITE_URL`.
+**Nedostaju `JWT_PRIVATE_KEY` i `JWKS`.** Bez njih Convex Auth ne može da potpiše token,
+pa se na produkciji **niko ne može prijaviti ni registrovati** — ni kupac, ni vlasnica.
+Na dev deployment-u su oba postavljena i prijava tamo radi (provereno u koraku 05).
+
+Nisam ih postavio: to je izmena na produkciji, a zadatak je bio pripremiti, ne deployovati.
+
+Ključ se generiše i postavlja **iz Bash-a, ne iz PowerShell-a** — PowerShell preseče
+višelinijsku vrednost na prvom prelomu reda i ostane samo prva linija:
+
+```bash
+npx @convex-dev/auth --prod        # generiše i postavi oba ključa
+# ili ručno, ako ključ već postoji:
+npx convex env set JWT_PRIVATE_KEY "$(cat kljuc.pem)" --prod
+npx convex env get JWT_PRIVATE_KEY --prod | wc -c   # mora biti ceo ključ, ne ~30 znakova
+```
+
+Posle toga proveriti registraciju na produkciji imejlom iz `OWNER_EMAIL` — taj nalog
+odmah dobija `role: "admin"`.
+
+## 2. Produkciona baza je prazna
+
+Sve što je večeras naseljeno je na **dev** deployment-u (`grand-bandicoot-904`).
+Produkcija (`good-swordfish-571`) nema ni katalog ni demo podatke. Pre prikaza:
+
+```bash
+npm run seed -- --prod        # katalog + demo saobraćaj
+```
+
+A **pre nego što panel ode vlasnici**:
+
+```bash
+npm run seed:clear -- --prod  # skida demo termine i porudžbine; katalog ostaje
+```
+
+---
+
+# Šta korak 07 dodaje
+
+## Demo podaci — `convex/seedDemo.ts`
+
+`npm run seed` / `npm run seed:clear`.
+
+| Šta | Koliko |
+| --- | --- |
+| Termini kroz **tekuću nedelju** | 14, oba lokala, sva tri resursa, mešano `nov` i `potvrdjen` |
+| Porudžbine | 5 — po jedna u svakom statusu (`nova`, `u_obradi`, `poslata`, `zavrsena`, `otkazana`), jedna sa loyalty popustom |
+| Loyalty članovi | 3, sa 3 zapisa iskorišćenog popusta |
+| Poruke sa kontakt forme | 2 (jedna nova, jedna odgovorena) |
+
+Dva pravila koja ovo drže:
+
+- **Datumi se računaju od „danas".** Termini kreću od `startOfWeek(belgradeNow().date)`,
+  porudžbine i loyalty istorija od `Date.now()`. Ništa nije zakucano — seed jednako
+  izgleda i za mesec dana.
+- **Demo se prepoznaje po kontaktu, ne po zastavici u shemi.** Telefon iz opsega
+  `0641230xxx` i imejl na `demo.beautybymasha.rs`. Oba se čitaju kroz postojeće
+  indekse (`bookings.by_phone`, `orders.by_phone`), pa `clear` briše tačno ono što je
+  seed napravio i nijedan pravi podatak. Zato je i `run` idempotentan: prvo obriše
+  prethodni demo, pa upiše nov. Provereno: `run` → `run` → `clear` → `run` daje isto
+  stanje, `clear` je vratio tačno 14 / 5 / 3 / 3 / 2.
+
+Utorak u Ljubičici namerno ima **tri manikira u 10:00** — kapacitet noktiju je 3, pa se
+u kalendaru mora videti kao tri uske trake jedna do druge. Ponedeljak nema nijedan
+termin u Mimozi, jer Mimoza ponedeljkom ne radi.
+
+## SEO
 
 | Fajl | Šta radi |
 | --- | --- |
-| `app/admin/page.tsx`, `layout.tsx` | Ruta panela. `robots: noindex, nofollow`, `force-dynamic`, `data-reveal="off"` na celom podstablu. |
-| `components/admin/AdminApp.tsx` | Ulaz, provera pristupa, raspored tabova. Tab stoji u hash-u (`/admin#kalendar`), pa osvežavanje i dugme „nazad“ ostaju gde je bila. |
-| `components/admin/AdminNav.tsx` | Donja traka od pet dodira na telefonu, leva kolona sa mint pilulom (`layoutId`) na desktopu. Bedž na „Zahtevi“ i „Porudžbine“. |
-| `components/admin/ui.tsx` | `useSave` + „Sačuvano“, toast sa `Poništi` (8 s), `Stepper`, `Toggle`, `InlineNumber`, `Segmented`, `ConfirmButton`, prazna stanja. |
-| `components/admin/AdminReveal.tsx` | Ulaz liste pri otvaranju taba (`useGSAP`, samo transform i opacity, `clearProps`, `matchMedia`). |
-| `components/admin/tabs/*` | Svih 12 tabova iz `docs/ADMIN.md`. |
-| `components/admin/tabs/importFormat.ts` | Prevod ćelija iz njene tabele u redove za `products.bulkUpsert`. 18 testova. |
-| `convex/gallery.ts` | Galerija radova: upload, redosled, „Istaknuto“, brisanje (i zapisa i fajla iz storage-a). |
-| `convex/admin.ts` → `me`, `today`, `badges` | Ko sam ja, današnji dan u jednom čitanju, brojevi za bedževe. |
-| `convex/products.ts` → `bulkAction`, `attachImageByName`, `purgeBySku` | Grupne izmene, masovni upload slika po nazivu fajla, čišćenje probnih artikala. |
-| `convex/loyalty.ts` → `members` | Svi članovi, poslednja poseta prva. |
-| `convex/blocks.ts` → `listRange` | Pauze cele nedelje u jednom upitu (kalendar). |
+| `lib/jsonLd.ts` | + `localBusinessJsonLd`, `organizationJsonLd`, `websiteJsonLd`. `productJsonLd` / `catalogJsonLd` / `breadcrumbJsonLd` su već postojali. |
+| `app/page.tsx` | 4 JSON-LD bloka na naslovnoj: `Organization`, `WebSite`, i **dva odvojena `BeautySalon`** entiteta. |
+| `app/sitemap.ts` | `/`, `/shop`, 70 stranica proizvoda. Panel, nalog, korpa, plaćanje i praćenje porudžbine nisu unutra. |
+| `app/robots.ts` | `Disallow` za `/admin`, `/nalog`, `/korpa`, `/placanje`, `/porudzbina` + `Sitemap` i `Host`. |
+| `app/opengraph-image.tsx` | 1200×630, crta se iz `LogoMark` (iste SVG putanje kao logo) — ne zavisi ni od jednog fajla u `public/`. |
+| `app/layout.tsx` | + `twitter: summary_large_image`, `robots`, `applicationName`, `formatDetection`. |
+| `lib/jsonLd.test.ts` | 9 testova — struktuirani podaci se ne vide na ekranu, pa greška u njima ostaje tiha mesecima. |
 
-### Četiri taba koja nose posao
-
-1. **Danas** — traka „N termina · M čeka potvrdu · K novih porudžbina“, prekidač
-   `Ljubicica | Mimoza | Oba`, dan grupisan po resursu (Nokti / Kozmetika / Masaža),
-   dodir na termin otvara sheet sa `Pozovi`, `Viber`, `Pomeri`, `Otkaži`. Promet dana
-   u tri brojke, bez grafikona.
-2. **Kalendar** — nedelja jednog lokala, **traka po resursu**. Termini koji se preklapaju
-   dele širinu trake (tri manikira u 10:00 su tri uska bloka, ne jedan preko drugog).
-   Na telefonu se gleda jedan dan uz traku nedelje i prevlačenje levo/desno; na `lg+`
-   cela nedelja. Dodir na prazno mesto upisuje termin ili pauzu.
-3. **Proizvodi** — mreža sa swatch-om, filteri, grupne radnje (cena za %, popust,
-   vidljivost), `Izvezi CSV` (tačka-zarez + BOM, za Excel na srpskom), masovni upload
-   slika po nazivu fajla, i **uvoz iz tabele**: fajl → mapiranje kolona (pogađa se samo)
-   → pregled prvih 20 → izveštaj `3 ažurirano · 1 novo · 1 preskočeno` sa razlogom.
-4. **Loyalty** — pretraga po broju kartice, imenu, telefonu ili imejlu; skener QR-a
-   (`BarcodeDetector` + `getUserMedia`) sa ručnim unosom kao punopravnom zamenom
-   tamo gde skenera nema; kartica člana sa istorijom i dugmetom `Iskoristi 10%`.
-
-### Provereno u browseru, kraj do kraja
-
-Protiv živog dev Convex deployment-a, na 390 px i 1440 px. Uvoz je proveren pravom
-tabelom sa srpskim zaglavljima i cenama u obliku `2.190,00`: mapiranje je pogodilo
-svih pet kolona, cene su ušle kao 2190 / 2290 / 1850, popust 10% je primenjen, red
-bez cene je preskočen uz poruku „Nov proizvod mora imati cenu.“, a **prazna ćelija za
-stanje nije pregazila postojeću vrednost** (CUPCAKE je zadržao 11). Probni podaci su
-obrisani (`products:purgeBySku`, `bookings:purgeByPhone`); katalog je vraćen na 70
-proizvoda sa polaznim cenama, a probni termini su uklonjeni.
-
-### Zamke koje su se pojavile i rešene su
-
-1. **`xlsx` je gutao srpske cene.** Sa `raw: true` biblioteka sama pretvara `2.190,00`
-   u broj po američkim pravilima i dobije **2,19**. Ceo cenovnik bi tiho postao
-   dvocifren. Rešeno sa `raw: false` — ćelija stiže onako kako je napisana, pa je
-   `parseNumber` čita po srpskom zapisu. Pokriveno testovima.
-2. **Ulaz kataloga je trajao 1,5 s.** Razmak po kartici puta 70 kartica probija
-   granicu iz `docs/MOTION.md` (~1,2 s), pa su poslednje kartice ostajale na
-   `opacity: 0`. `AdminReveal` sada koristi `stagger: { amount }` — ceo niz uvek
-   staje u isti prozor, bez obzira na broj kartica.
-3. **Magnetni omotač dugmeta probijao je 390 px.** Primarno dugme je podrazumevano
-   magnetno, a omotač ima negativnu marginu. U panelu je magnet ugašen svuda —
-   ovo se koristi palcem, ne mišem.
-4. **Prekidači su bili 40 px.** `Segmented` je podignut na 44 px, po pravilu iz
-   `docs/ADMIN.md`.
-
-### Odstupanje od specifikacije — pročitati
-
-`docs/ADMIN.md` traži da je `/admin` **server-side zaštićen** (nema role → redirect
-na `/nalog`). Isporučeno je: `robots: noindex, nofollow` iz servera, klijentska
-kapija koja nudi prijavu, i — što je jedina granica koja stvarno drži — `assertAdmin`
-/ `assertStaff` na **svakom** upitu i **svakoj** izmeni u Convex-u. Bez uloge se ne
-dobija nijedan podatak, ni kad bi neko zaobišao taj ekran.
-
-Prava SSR zaštita traži zamenu `ConvexAuthProvider` sa `ConvexAuthNextjsProvider`
-plus `convexAuthNextjsMiddleware`, što premešta token iz `localStorage` u kolačiće i
-dira prijavu na celom sajtu — onu koja je u koraku 05 provereno proradila. Nisam to
-radio usput u istom koraku. **Ako se želi, to je zaseban korak sa sopstvenom
-proverom prijave, korpe i naloga.**
-
-### Otvoreno / za vlasnicu
-
-- **`[POTVRDITI]` kanal potvrde termina.** Panel čuva tekst poruke uz potvrdu
-  (Podešavanja → „Poruka uz potvrdu termina“, sa `{ime} {usluga} {datum} {vreme} {lokal}`),
-  ali je **ne šalje** — nije dogovoreno da li ide imejlom, Viberom ili SMS-om.
-  Potvrda i dalje uredno upisuje termin u kalendar.
-- **Imena lokala u `data/site.json` su bez dijakritika** — „Ljubicica“ umesto
-  „Ljubičica“. To se vidi i na javnom sajtu, ne samo u panelu. Nisam dirao
-  `data/*.json` (te fajlove menja i drugi tok rada); popravka je jedno slovo u
-  `locations[].name`.
-- **Radno vreme nije potvrđeno** (`hoursConfirmed: false`) — baner u tabu
-  „Radno vreme“ upravo to i traži.
-
-### Izmene u zajedničkim fajlovima, pažljivo pri merge-u
-
-- `convex/schema.ts` — nova tabela `gallery`; `settings` je dobio `shippingFlatRsd`,
-  `shippingFreeOverRsd`, `loyaltyPercent` i `confirmMessage` (sva **opciona**, pa
-  stariji dokument radi bez migracije).
-- `lib/shop.ts` — `shippingFor`, `loyaltyDiscountFor` i `cartTotals` primaju opcioni
-  `ShopConfig`. Bez argumenta važi `data/site.json`, pa javni sajt i postojeći testovi
-  rade nepromenjeno; `orders.quote` i `orders.create` sada prosleđuju ono što stoji u
-  bazi, da tab „Podešavanja“ zaista nešto menja.
-- `convex/bookings.ts`, `blocks.ts`, `schedules.ts`, `services.ts` — čitanja i izmene
-  koje radnica sme (Danas, Zahtevi, Kalendar, Loyalty) prešle su sa `assertAdmin` na
-  `assertStaff`. Promet, proizvodi i podešavanja ostaju samo za admina.
-- `vitest.config.mts` — dodat `@` alias, isti kao u `tsconfig.json`.
-
-### Kako ući u panel
-
-Dok u bazi nema nijednog admin naloga važi `ADMIN_KEY` (`/admin` → „Prvo podizanje
-panela“). Čim se vlasnica registruje imejlom iz `OWNER_EMAIL`, dobija `role: "admin"`
-i ključ prestaje da važi. **`OWNER_EMAIL` nije postavljen ni na dev ni na prod** —
-postaviti ga pre nego što joj se preda panel:
+**Dva lokala = dva entiteta**, sa različitim `@id`, adresom i radnim vremenom. Provereno
+u sagrađenom HTML-u:
 
 ```
-npx convex env set OWNER_EMAIL <njen imejl> [--prod]
+BeautySalon | Beauty by Masha — Ljubičica | .../#lokal-ljubicica
+    Monday 09:00 - 21:00
+BeautySalon | Beauty by Masha — Mimoza    | .../#lokal-mimoza
+    Monday 00:00 - 00:00      ← Schema.org zapis za „zatvoreno"
 ```
+
+Zatvoren dan se **ne preskače** nego se piše kao `00:00–00:00`. Preskočen dan Google
+čita kao „ne znamo", što nije isto što i „ne radi".
+
+`generateMetadata` / `metadata` postoji na svakoj ruti, sa srpskim naslovom i opisom.
+`/nalog` je prebačen sa `index: true` na `index: false` — iza prijave nema šta da se
+rangira. Sve slike na `/shop` (50 komada) imaju `alt`, `sizes` i stižu kao AVIF.
+
+## Pristupačnost
+
+- **Skip-link** — `components/site/SkipLink.tsx`, montiran u `app/layout.tsx`.
+  Provereno: prvi `Tab` na stranici ga fokusira, visok je 44 px, vidljiv (ink na paper,
+  kontrast ~15:1), meta `#sadrzaj` postoji. `<main id="sadrzaj">` je dodat na **svaku**
+  rutu, uključujući oba ekrana panela.
+- **Mint nikad kao tekst** — `grep` za `text-mint` u `app/`, `components/`, `lib/` je prazan.
+  Fokus prsten koristi `--mint-deep` u svetloj temi, `--mint` u tamnoj.
+- `prefers-reduced-motion` je već gasio shader, parallax, magnetic i clip-reveal
+  (korak 04) — provereno da i dalje važi.
+
+## Performanse
+
+| Mereno posle `npm run build` | gzip |
+| --- | --- |
+| Početni JS naslovne strane | **305 KB** (958 KB nekompresovano, 14 chunkova) |
+| `/shop` | 293 KB |
+| `/shop/[slug]` | 283 KB |
+
+**`three` / R3F nisu u početnom bundle-u.** Dva chunka koja sadrže `three`
+(870 KB i 424 KB nekompresovano) ne pojavljuju se u `<script>` listi sagrađene
+naslovne strane — učitava ih `dynamic(() => import("./LiquidCanvas"), { ssr: false })`
+tek kad `useHeroWebGL` odluči da sme (WebGL2, širina preko 768 px, bez
+`prefers-reduced-motion`). Na 390 px u browseru: 0 `<canvas>` elemenata.
+
+305 KB je pošteno za ono što nosi (GSAP + ScrollTrigger + Flip, Convex klijent, Motion,
+Lenis), ali nije malo. Ako zatreba obaranje, tu su najveći kandidati.
+
+## Sitne ispravke
+
+- **`Ljubicica` → `Ljubičica`** u `data/site.json` (`name`, `fullName`, `building`).
+  Videlo se na javnom sajtu i u panelu. `fullName` oba lokala sada koristi crtu
+  „—" umesto „-". `seedCore` sada i **ažurira** ime lokala u bazi kad se razlikuje
+  od `data/site.json` — naziv se u panelu ne menja (tamo se lokal samo pali i gasi),
+  pa je JSON jedini izvor. Bez toga bi ispravka ostala samo na sajtu.
+- **`convex/lib/seed.ts`** — logika iz `admin.init` / `admin.seedShop` je izvučena u
+  `seedCore` / `seedShopCore`, pa je zovu i panel (uz ključ) i `seedDemo` (iz komandne
+  linije, bez ključa). Ranije bi to postojalo u dve verzije koje se razilaze.
+  Ponašanje `admin.init` i `admin.seedShop` je nepromenjeno.
+- `README.md` je bio `create-next-app` boilerplate — sada ima pokretanje, komande,
+  tabelu env promenljivih i uputstvo za seed.
+
+---
+
+# Šta ne radi / nije napravljeno
+
+| Šta | Zašto |
+| --- | --- |
+| **Prijava na produkciji** | nedostaju `JWT_PRIVATE_KEY` i `JWKS` — vidi blokadu 1 gore |
+| **Potvrda termina se ne šalje gostu** | kanal nije dogovoren (imejl / Viber / SMS). Panel čuva tekst poruke, potvrda uredno upisuje termin u kalendar, ali ništa ne odlazi. `RESEND_API_KEY` nije postavljen. |
+| **IPS QR plaćanje** | broj računa salona nije poznat. Kod je gotov i testiran; dok je `IPS_RECIPIENT_ACCOUNT` prazan, sajt nudi samo pouzeće. |
+| **`geo` u JSON-LD** | tačne koordinate oba ulaza nisu potvrđene i nisu izmišljene. `hasMap` (Google Maps pretraga po `mapsQuery`) radi isti posao dok koordinate ne stignu. Postoji test koji pada ako neko ubaci `geo`. |
+| **SSR zaštita `/admin`** | i dalje kao u koraku 06: `noindex` sa servera + klijentska kapija + `assertAdmin`/`assertStaff` na **svakom** upitu i izmeni. Bez uloge se ne dobija nijedan podatak. Prava SSR zaštita traži zamenu `ConvexAuthProvider` sa `ConvexAuthNextjsProvider` i diranje prijave na celom sajtu — zaseban korak sa sopstvenom proverom. |
+| **`alt` na swatch slikama u katalogu** | namerno prazan: slika sedi u `<span aria-hidden>`, a naziv proizvoda stoji odmah ispod. Puni `alt` ima slika na stranici proizvoda — ta ide u Google Images. |
+| **Google Business povezivanje** | schema je spremna, ali NAP mora da se poklopi sa profilom koji ona ima. Ne može bez pristupa njenom Google nalogu. |
+
+## Secrets u gitu
+
+Čisto. `.env*` je u `.gitignore`, `git ls-files` ne vraća nijedan `.env`, a skeniranje
+praćenih fajlova na obrasce API ključeva, privatnih ključeva i lozinki daje jedan
+pogodak — `convex/auth.ts:18`, poruka o validaciji `"Lozinka mora imati bar 8 znakova."`.
+Nije tajna.
+
+---
+
+# Svaki `[POTVRDITI]` koji je ostao, sa putanjom
+
+## Vidi se gostu na sajtu
+
+| Fajl | Šta čeka |
+| --- | --- |
+| `app/shop/page.tsx:55` | „Cene proizvoda su okvirne dok ih ne potvrdi vlasnica." — tekst na `/shop` |
+| `components/sections/ShopHighlights.tsx:92` | ista rečenica na landingu |
+| `components/sections/ReviewsSection.tsx:52` | da li smemo da prikazujemo ocene sa 011info |
+| `components/cart/CheckoutView.tsx:107` | poruka da IPS QR ne postoji dok nema broja računa |
+
+## Podaci o salonu — `data/site.json`
+
+| Linija | Šta čeka |
+| --- | --- |
+| `:9` `urlNote` | domen. Sad je Vercel adresa; kad kupi domen menja se ovde **i** u Vercel podešavanjima **i** u `SITE_URL` na oba Convex deployment-a |
+| `:97` `capacityNote` (Ljubičica) | koliko ljudi istovremeno radi nokte / kozmetiku / masažu. Sada: 3 / 1 / 1 |
+| `:172` `capacityNote` (Mimoza) | isto. Sada: 2 / 1 / 1 |
+| `:192` `shipping.note` | poštarina 400 RSD, besplatno preko 6.000 — uskladiti sa njenim kurirom |
+| `:202` `ips.accountNote` | **tekući račun salona**, 18 cifara. Nije poznat, ne izmišljati |
+| `:203–204` `ips.recipientName` | naziv primaoca tačno kako stoji u banci (verovatno pun naziv iz APR-a) |
+| `:205–206` `ips.recipientAddress` | ulica i broj sedišta firme |
+| `:207–208` `ips.recipientCity` | poštanski broj i grad sedišta |
+| `:210` `ips.paymentCodeNote` | da li njena banka traži šifru drugu od `289` |
+
+Sve iz `ips` bloka se u produkciji prebrisuje Convex env promenljivama
+(`IPS_RECIPIENT_ACCOUNT` i ostale) — račun ne treba da uđe u git.
+
+## Cene i usluge
+
+| Fajl | Šta čeka |
+| --- | --- |
+| `data/products.json:7` `priceNote` | **sve cene proizvoda.** Preračunate iz USD, okvirne. Treba njena maloprodajna lista |
+| `lib/products.ts:6`, `:64` | isto, u komentarima tipa |
+| `data/services.json` (18 mesta) | 15 „paket" stavki — sadržaj paketa nije poznat; 4 stavke bez cene: `brow-lamination`, `kana-obrve`, `sminkanje`, `detox-paket` (postoje kao Instagram highlight, nema ih u cenovniku) |
+| `lib/services.ts:104` | isti nepocenjeni artikli, kroz `unpricedServices` |
+| `lib/serviceCategories.ts:5` | `BRAND.md` traži peti krug „Nega lica", a u cenovniku nema takve grupe |
+
+## Poslovna pravila
+
+| Fajl | Šta čeka |
+| --- | --- |
+| `convex/lib/availability.ts:77` | podrazumevani kapaciteti — isto pitanje kao `capacityNote` gore |
+| `convex/lib/loyalty.ts:12` | pravila loyalty ciklusa: koliko traje, da li se popust obnavlja po poseti ili po vremenu |
+| `docs/ADMIN.md:45` | kanal potvrde termina: imejl / Viber / SMS |
+| `docs/BRIEF.md:9` | prezime vlasnice i da li njeno ime uopšte ide na sajt |
+| `docs/BRIEF.md:37` | nedelja 10–17 (Instagram) ili 10–20 (011info)? Sada je u sistemu 10–20 |
+| `docs/BRIEF.md:102` | da li smemo da objavimo fotografije radova sa Instagrama |
+| `docs/BRAND.md:128` | isto pitanje o recenzijama sa 011info |
+
+## Nije `[POTVRDITI]`, ali čeka nju
+
+- **Radno vreme nije potvrđeno** (`hoursConfirmed: false`). Baner u tabu „Radno vreme"
+  upravo to traži. Sve zavisi od ovoga — sajt nikad ne nudi vreme van radnog vremena.
+- **Trajanja usluga su procena.** Cene su verbatim iz cenovnika i ne diraju se; trajanja
+  su naša i menjaju se kroz admin. Ako je trajanje pogrešno, gost stiže u pogrešno vreme.
+
+---
+
+# Ako se nastavlja
+
+Redosled po tome koliko boli ako se ne uradi:
+
+1. `JWT_PRIVATE_KEY` + `JWKS` na produkciji, pa provera registracije (blokada 1).
+2. `npm run seed -- --prod`, pa obilazak produkcije kao gost.
+3. Kanal potvrde termina — jedina rupa u toku zakazivanja koju gost oseti.
+4. Prave cene proizvoda i sadržaj paketa, od nje.
+5. SSR zaštita `/admin`, kao zaseban korak sa sopstvenom proverom prijave, korpe i naloga.
+
+---
+
+# Dodatak — potpun popis `[POTVRDITI]` u kodu
+
+Iznad su grupisana po pitanju. Ovde su **sva pojavljivanja**, da se ništa ne izgubi.
+Ona označena „komentar" nisu novo pitanje — objašnjavaju neki od markera odozgo.
+
+| Putanja i linija | Vrsta |
+| --- | --- |
+| `app/shop/page.tsx:55` | tekst na sajtu |
+| `components/sections/ShopHighlights.tsx:92` | tekst na sajtu |
+| `components/sections/ShopHighlights.tsx:17` | komentar (upućuje na `products.meta.priceNote`) |
+| `components/sections/ReviewsSection.tsx:52` | tekst na sajtu |
+| `components/sections/ReviewsSection.tsx:14` | komentar (dozvola za citiranje 011info) |
+| `components/cart/CheckoutView.tsx:107` | tekst na sajtu |
+| `lib/ips.ts:10` | komentar (prazan račun) |
+| `lib/ips.ts:69` | **kod** — `"[POTVRDITI]"` u vrednosti se tretira kao prazno polje |
+| `lib/jsonLd.ts:146` | komentar (nema `geo`, vidi „Šta ne radi") |
+| `lib/products.ts:6`, `lib/products.ts:64` | komentar (okvirne cene) |
+| `lib/serviceCategories.ts:5` | otvoreno pitanje (peti krug „Nega lica") |
+| `lib/services.ts:38` | komentar (`priceRsd: null`) |
+| `lib/services.ts:104` | komentar (`unpricedServices`) |
+| `lib/site.ts:4`, `lib/site.ts:87` | komentar (pravilo: `[POTVRDITI]` ostaje u JSON-u) |
+| `convex/lib/availability.ts:77` | otvoreno pitanje (kapaciteti) |
+| `convex/lib/loyalty.ts:12` | otvoreno pitanje (loyalty ciklus) |
+| `convex/schema.ts:349` | komentar (`priceRsd: null`) |
+| `convex/shop.test.ts:399` | komentar — test pada onog dana kad broj računa uđe u `data/site.json`, i to je namerno |
+| `data/site.json` — `:9 :97 :172 :192 :202 :203 :204 :205 :206 :207 :208 :210` | otvorena pitanja (tabela gore) |
+| `data/products.json:7` | otvoreno pitanje (sve cene proizvoda) |
+| `data/services.json` — 18 mesta (`:102–:106`, `:117–:118`, `:133–:137`, `:147–:148`, `:175–:178`) | sadržaj 15 paketa + 4 usluge bez cene |
+| `docs/BRIEF.md:4` | legenda oznake, ne pitanje |
+| `docs/BRIEF.md:9` | prezime vlasnice, da li ime ide na sajt |
+| `docs/BRIEF.md:37` | nedelja 10–17 (Instagram) ili 10–20 (011info) |
+| `docs/BRIEF.md:60` | 4 usluge sa Instagrama kojih nema u cenovniku |
+| `docs/BRIEF.md:92` | sve cene proizvoda |
+| `docs/BRIEF.md:102` | dozvola za objavu fotografija radova |
+| `docs/BRIEF.md:107` | imena radnica i raspored (zato model kapaciteta ne traži imena — ADR-001) |
+| `docs/BRAND.md:128` | dozvola za citiranje recenzija |
+| `docs/ADMIN.md:45` | kanal potvrde termina |
+| `docs/PLAN.md:40` | pravilo projekta, ne pitanje |

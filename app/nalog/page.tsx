@@ -7,18 +7,22 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { formatPercent } from "@/lib/format";
 import { site } from "@/lib/site";
 
+/**
+ * Nalog se ne indeksira: iza prijave nema šta da se rangira, a stranica koja
+ * svakom posetiocu izgleda drugačije samo troši budžet obilaska.
+ */
 export const metadata: Metadata = {
   title: "Moj nalog",
   description: `Nalog nosi ${formatPercent(site.loyalty.discountPercent)} popusta na sledeći račun, člansku karticu sa QR kodom i pregled termina i porudžbina.`,
   alternates: { canonical: "/nalog" },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: true },
 };
 
 export default function AccountPage() {
   return (
     <>
       <SiteNav alwaysSolid />
-      <main className="pt-16 md:pt-20">
+      <main id="sadrzaj" className="pt-16 md:pt-20">
         <Section>
           <SectionHeading
             as="h1"
