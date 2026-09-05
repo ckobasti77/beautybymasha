@@ -51,3 +51,7 @@ next-env.d.ts
 
 # Playwright MCP artefakti (screenshot/konzola)
 /.playwright-mcp/
+
+# Convex snapshot backupi (sadrze hash-eve lozinki i imejlove) i logovi runova
+.nightrun/backup/
+.nightrun/logs/

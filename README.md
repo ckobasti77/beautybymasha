@@ -60,7 +60,7 @@ Dve strane, dva mesta. **Ništa od ovoga ne ide u git** (`.env*` je u `.gitignor
 | `JWT_PRIVATE_KEY` | da | privatni ključ kojim Convex Auth potpisuje prijave. Bez njega **niko ne može da se prijavi**. |
 | `JWKS` | da | javni deo istog ključa. Ide u paru sa `JWT_PRIVATE_KEY`. |
 | `ADMIN_KEY` | da | rezervni ključ za `/admin`, važi **samo dok u bazi nema nijednog admin naloga**. Čim se vlasnica registruje, prestaje da važi. |
-| `OWNER_EMAIL` | da | imejl vlasnice. Nalog registrovan tim imejlom automatski dobija `role: "admin"`. |
+| `OWNER_EMAIL` | da | imejl vlasnice — ili više imejlova razdvojenih zarezom (`ivana@…,jovan@…`). Nalog registrovan bilo kojim od njih automatski dobija `role: "admin"`. |
 | `IPS_RECIPIENT_ACCOUNT` | ne | tekući račun salona, 18 cifara. Dok je prazan, sajt nudi samo pouzeće i **ne pravi IPS QR**. |
 | `IPS_RECIPIENT_NAME` | ne | naziv primaoca tačno kako stoji u banci. |
 | `IPS_RECIPIENT_ADDRESS` | ne | ulica i broj sedišta firme. |

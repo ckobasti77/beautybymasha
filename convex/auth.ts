@@ -80,7 +80,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
      * Convex Auth prvo ubaci `users` dokument sa samo `email`. Ovde mu se dopisuje
      * ono što je naše: uloga, broj članske kartice i datum upisa.
      *
-     * Prva registracija sa `OWNER_EMAIL` dobija `role: "admin"` — bez toga
+     * Prva registracija imejlom iz `OWNER_EMAIL` (jedan ili više, razdvojeni zarezom)
+     * dobija `role: "admin"` — bez toga
      * vlasnica ne bi mogla u panel posle gašenja rezervnog `ADMIN_KEY` puta.
      */
     async afterUserCreatedOrUpdated(rawCtx, { userId }) {
@@ -93,8 +94,14 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       const patch: { role?: "admin" | "customer"; loyaltyNumber?: string; createdAt?: number } = {};
 
       if (!user.role) {
-        const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
-        patch.role = ownerEmail && user.email?.toLowerCase() === ownerEmail ? "admin" : "customer";
+        // `OWNER_EMAIL` može da nosi više adresa, razdvojenih zarezom / tačka-zarezom /
+        // razmakom (vlasnica + Jovan tokom razvoja). Poređenje je bez velikih slova.
+        const ownerEmails = (process.env.OWNER_EMAIL ?? "")
+          .split(/[,;\s]+/)
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        const email = user.email?.toLowerCase();
+        patch.role = email && ownerEmails.includes(email) ? "admin" : "customer";
       }
       if (!user.loyaltyNumber) {
         patch.loyaltyNumber = await issueLoyaltyNumber(ctx);
