@@ -7,9 +7,19 @@ import { Phone } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/Button";
 import { useOptionalLenis } from "@/components/providers/SmoothScroll";
+import { formatDuration, formatRsd } from "@/lib/format";
+import {
+  BOOKING_SECTION_ID,
+  BOOK_EVENT,
+  clearBookingHash,
+  parseBookingHash,
+  syncBookingHash,
+  type BookDetail,
+} from "@/lib/sectionIntent";
 import { addDays, belgradeNow, startOfWeek } from "@/lib/slots";
 import { serviceByKey } from "@/lib/services";
 import { site, type LocationKey } from "@/lib/site";
+import { useHashIntent } from "@/lib/useHashIntent";
 import { DetailsStep } from "./DetailsStep";
 import {
   emptyDetails,
@@ -44,10 +54,19 @@ import { WeekStrip, isDayEnabled, type DayInfo } from "./WeekStrip";
  * `now` se šalje zaokružen NAGORE na 5 minuta: ključ pretplate ostaje stabilan, a
  * klijent je bar toliko strog koliko i server, pa ne nudi termin koji bi mutacija
  * odbila zbog najave.
+ *
+ * Deep link iz cenovnika (spec 11): `#zakazivanje?usluga=<key>` pri učitavanju ili
+ * `bbm:book` na klik (lib/sectionIntent.ts). Usluga se upiše, korak Usluga se preskače
+ * (Lokacija → Dan i vreme), a gost je menja kroz „Promenite uslugu". Nepoznat ili
+ * nebookable ključ: čarobnjak kreće normalno, samo se doskroluje do njega.
  */
 
 const NOW_ROUND_MS = 5 * 60 * 1000;
 const HAS_BACKEND = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+/** Prvi dodir skrola gasi praćenje rasporeda posle deep linka (vidi `scrollToWizard`). */
+const SETTLE_EVENTS = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+/** Koliko dugo posle deep linka pratimo pomeranje rasporeda (LoyaltyBar, fontovi). */
+const SETTLE_MS = 2000;
 
 type Clock = { now: number; today: string };
 type Status =
@@ -198,6 +217,57 @@ function BookingWizardLive() {
     else window.scrollTo({ top: target });
   }, [step, lenis]);
 
+  /**
+   * Skrol do sekcije posle deep linka — jedan vlasnik (efekat iznad se preskače preko
+   * `navigatedRef`). Klik iz cenovnika: Lenis glatko, pa fokus na naslov koraka.
+   * Direktno učitavanje: nativni `scrollIntoView` odmah (Next hash bez mete ne
+   * skroluje, a Lenis još ne postoji — sinhronizuje se preko nativnog skrola);
+   * reload i nazad/napred vraćaju staru poziciju, kao i nativna sidra. `LoyaltyBar`
+   * iznad se montira posle hidratacije i pomera raspored, pa kratko pratimo visinu
+   * strane i ponovo skačemo — dok gost ne pipne skrol.
+   */
+  const settleRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => settleRef.current?.(), []);
+
+  const scrollToWizard = useCallback(
+    (initial: boolean) => {
+      const section = document.getElementById(BOOKING_SECTION_ID);
+      if (!section) return;
+      const focusHeading = () => headingRef.current?.focus({ preventScroll: true });
+
+      if (!initial) {
+        const smooth = lenis?.current;
+        if (smooth) smooth.scrollTo(section, { onComplete: focusHeading });
+        else {
+          section.scrollIntoView();
+          focusHeading();
+        }
+        return;
+      }
+
+      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      const restored = nav?.type === "reload" || nav?.type === "back_forward";
+      if (restored && performance.now() < 3000) return;
+
+      section.scrollIntoView();
+      focusHeading();
+
+      settleRef.current?.();
+      const observer = new ResizeObserver(() => section.scrollIntoView());
+      const stop = () => {
+        observer.disconnect();
+        for (const ev of SETTLE_EVENTS) window.removeEventListener(ev, stop);
+        window.clearTimeout(timer);
+        settleRef.current = null;
+      };
+      const timer = window.setTimeout(stop, SETTLE_MS);
+      for (const ev of SETTLE_EVENTS) window.addEventListener(ev, stop, { passive: true });
+      observer.observe(document.body);
+      settleRef.current = stop;
+    },
+    [lenis],
+  );
+
   const setField = <K extends keyof DetailsValues>(key: K, value: DetailsValues[K]) => {
     const next = { ...details, [key]: value };
     setDetails(next);
@@ -225,7 +295,32 @@ function BookingWizardLive() {
     setTouched({});
     setStatus({ kind: "idle" });
     setLive("");
+    clearBookingHash();
   };
+
+  useHashIntent<string>({
+    event: BOOK_EVENT,
+    parseHash: parseBookingHash,
+    fromEvent: (e) => {
+      const d = e.detail as BookDetail | undefined;
+      return typeof d?.serviceKey === "string" ? d.serviceKey : null;
+    },
+    onIntent: (key, { initial }) => {
+      scrollToWizard(initial);
+      const s = serviceByKey(key);
+      if (!s || !s.bookable || s.priceRsd === null) return;
+      if (status.kind === "pending") return;
+      const fresh = status.kind === "success";
+      if (fresh) reset();
+      setServiceKey(s.key);
+      setPickedStart(null);
+      setStatus((st) => (st.kind === "error" ? { kind: "idle" } : st));
+      // Lokal već izabran → pravo na dan i vreme; inače od lokala (korak Usluga se preskače).
+      navigatedRef.current = false;
+      setStep(!fresh && locationKey ? 2 : 0);
+      setLive(booking.preset.announced(s.title));
+    },
+  });
 
   const submit = async () => {
     if (!service || !locationKey || !date || startMin === null) return;
@@ -263,6 +358,7 @@ function BookingWizardLive() {
         endMin: res.endMin,
       });
       setLive(booking.success.title);
+      clearBookingHash();
     } catch (err) {
       const message = err instanceof ConvexError ? serverMessage(err.data) : booking.errors.generic;
       setLive(message);
@@ -278,7 +374,8 @@ function BookingWizardLive() {
     e.preventDefault();
     if (status.kind === "pending") return;
     if (step < STEPS.length - 1) {
-      if (canProceed) go(step + 1);
+      // Usluga već izabrana (cenovnik ili raniji prolaz) → sa lokala pravo na dan i vreme.
+      if (canProceed) go(step === 0 && serviceKey ? 2 : step + 1);
       return;
     }
     void submit();
@@ -298,7 +395,12 @@ function BookingWizardLive() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       <form onSubmit={onSubmit} noValidate className="rounded-lg border border-line bg-bg-elev p-5 shadow-card md:p-8">
-        <StepDots step={step} onJump={go} disabled={status.kind === "pending"} />
+        <StepDots
+          step={step}
+          onJump={go}
+          disabled={status.kind === "pending"}
+          completed={(i) => i === 1 && Boolean(serviceKey)}
+        />
 
         <p aria-live="polite" className="sr-only">
           {live}
@@ -315,6 +417,25 @@ function BookingWizardLive() {
         </p>
         {step === 0 ? <p className="mt-1 text-sm text-fg-muted">{booking.location.hint}</p> : null}
         {step === 1 ? <p className="mt-1 text-sm text-fg-muted">{booking.service.hint}</p> : null}
+
+        {step === 0 && service ? (
+          // Usluga stigla iz cenovnika: gost vidi šta zakazuje pre nego što bira lokal
+          // (na telefonu je rezime ispod forme). Unutar <form>-a, pa bez reveal-a.
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-bg-sunken px-4 py-3">
+            <p className="text-sm text-fg">
+              <span className="text-fg-muted">{booking.preset.label}: </span>
+              <span className="font-semibold">{service.title}</span>
+              <span className="num text-fg-muted">
+                {" · "}
+                {formatDuration(service.durationMin)}
+                {service.priceRsd !== null ? ` · ${formatRsd(service.priceRsd)}` : ""}
+              </span>
+            </p>
+            <Button type="button" variant="ghost" magnetic={false} onClick={() => go(1)}>
+              {booking.preset.change}
+            </Button>
+          </div>
+        ) : null}
 
         <div className="mt-6">
           {step === 0 ? (
@@ -334,6 +455,7 @@ function BookingWizardLive() {
               onSelect={(k) => {
                 setServiceKey(k);
                 setPickedStart(null);
+                syncBookingHash(k);
               }}
             />
           ) : null}
@@ -421,7 +543,10 @@ function BookingWizardLive() {
         </div>
       </form>
 
-      <SummaryCard data={{ locationKey, serviceKey, date, startMin }} />
+      <SummaryCard
+        data={{ locationKey, serviceKey, date, startMin }}
+        onChangeService={serviceKey && step !== 1 && status.kind !== "pending" ? () => go(1) : undefined}
+      />
     </div>
   );
 }

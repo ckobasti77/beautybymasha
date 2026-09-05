@@ -365,6 +365,199 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Swatch — kap laka snimljena odozgo (spec 11 B)                      */
+/*  .sw = kontejner (container units za decu) + senka na podlozi;       */
+/*  .sw-drop = sama kap: oblik, telo, obod, odsjaji, tekstura po finišu.*/
+/*  Sve mere u cqw da kap izgleda isto na 48 px i na 400 px. Filteri su */
+/*  u components/shop/SwatchDefs.tsx — jedan <defs> za ceo sajt.        */
+/*  Bez mix-blend-mode (WebKit/Blink cure kroz zaobljeni clip) i bez     */
+/*  blur() na slojevima — sve je alfa kompozit i gradijent.             */
+/* ------------------------------------------------------------------ */
+.sw {
+  --sw-deep: color-mix(in oklab, var(--sw) 70%, #12100f);
+  --sw-shadow: color-mix(in srgb, var(--sw-deep) 38%, transparent);
+  --sw-contact: color-mix(in srgb, var(--sw-deep) 26%, transparent);
+  --sw-spec-a: 0.9;
+  --sw-rim-a: 0.18;
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  container-type: inline-size;
+  isolation: isolate;
+  forced-color-adjust: none;
+  print-color-adjust: exact;
+}
+/* tamna tema: senka i odsjaji jači, da se kap odvoji od podloge */
+:root[data-theme="dark"] .sw {
+  --sw-shadow: color-mix(in srgb, var(--sw-deep) 62%, transparent);
+  --sw-contact: color-mix(in srgb, var(--sw-deep) 45%, transparent);
+  --sw-spec-a: 1;
+  --sw-rim-a: 0.26;
+}
+/* senka na podlozi: u tonu boje, nikad crna; na hover se samo pomeri (transform, bez repaint-a) */
+.sw-shadow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sw-shape);
+  box-shadow:
+    0 7cqw 16cqw -3cqw var(--sw-shadow),
+    0 1cqw 2cqw -0.5cqw var(--sw-contact);
+  transition: transform var(--dur-normal) var(--ease-out-expo);
+  pointer-events: none;
+}
+.sw-drop {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sw-shape);
+  clip-path: inset(0 round var(--sw-shape));
+  overflow: hidden;
+  background: var(--sw);
+  transition: transform var(--dur-normal) var(--ease-out-expo);
+}
+.sw-drop > * {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* dubina tečnosti: svetlo gore-levo (30% 25%), tamno dole-desno; inset senke = debljina kapi */
+.sw-light {
+  background:
+    radial-gradient(ellipse 62% 30% at 50% 4%, rgba(255, 255, 255, var(--sw-rim-a)), rgba(255, 255, 255, 0) 100%),
+    radial-gradient(
+      circle at 30% 25%,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.1) 24%,
+      rgba(255, 255, 255, 0) 42%,
+      rgba(0, 0, 0, 0) 58%,
+      rgba(0, 0, 0, 0.24) 100%
+    );
+  box-shadow:
+    inset 0 -5cqw 9cqw -4cqw rgba(0, 0, 0, 0.32),
+    inset 0 2cqw 4cqw -2cqw rgba(255, 255, 255, 0.4),
+    inset 0 0 0 0.6cqw color-mix(in srgb, var(--sw-deep) 35%, transparent);
+}
+/* oštar beli odsjaj gore-levo, ~14% prečnika */
+.sw-spec {
+  inset: auto;
+  left: 21%;
+  top: 13%;
+  width: 15%;
+  height: 11%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, var(--sw-spec-a)) 58%, rgba(255, 255, 255, 0) 100%);
+  transform: rotate(-22deg);
+}
+/* tekstura po finišu — nose je samo shimmer/glitter/holo/metallic; sloj je veći od kapi i
+   okrenut po hash-u hex-a (0/180 + flip), pa 70 kapi ne deli isti šum */
+.sw-tex {
+  inset: -12%;
+  border-radius: 0;
+  transform: rotate(var(--sw-rot)) scaleX(var(--sw-flip));
+}
+.sw-drop[data-finish="shimmer"] .sw-tex {
+  filter: url(#bbm-sw-shimmer);
+  opacity: 0.34;
+}
+.sw-drop[data-finish="glitter"] .sw-tex,
+.sw-drop[data-finish="holo"] .sw-tex {
+  filter: url(#bbm-sw-glitter);
+  opacity: 0.62;
+}
+.sw-drop[data-finish="metallic"] .sw-tex {
+  background: linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(0, 0, 0, 0.2) 36%,
+    rgba(255, 255, 255, 0.42) 50%,
+    rgba(0, 0, 0, 0.18) 66%,
+    rgba(255, 255, 255, 0.36) 82%,
+    rgba(0, 0, 0, 0.14) 100%
+  );
+  filter: url(#bbm-sw-metallic);
+  opacity: 0.9;
+}
+@container (min-width: 200px) {
+  .sw-drop[data-finish="shimmer"] .sw-tex {
+    filter: url(#bbm-sw-shimmer-lg);
+  }
+  .sw-drop[data-finish="glitter"] .sw-tex,
+  .sw-drop[data-finish="holo"] .sw-tex {
+    filter: url(#bbm-sw-glitter-lg);
+  }
+  .sw-drop[data-finish="metallic"] .sw-tex {
+    filter: url(#bbm-sw-metallic-lg);
+  }
+}
+/* holo: duga preko glitera */
+.sw-tint {
+  inset: -10%;
+  border-radius: 0;
+  background: conic-gradient(
+    from 200deg at 46% 42%,
+    #ff7896,
+    #ffc878,
+    #d2ff8c,
+    #8cffe1,
+    #8cbeff,
+    #c88cff,
+    #ff8cdc,
+    #ff7896
+  );
+  opacity: 0.22;
+}
+/* providni finiši nad stalnom papirnom podlogom: ista kap na beloj kartici, na papiru i u tamnoj temi */
+.sw-drop[data-finish="sheer"] {
+  --sw-spec-a: 0.72;
+  background:
+    linear-gradient(color-mix(in srgb, var(--sw) 62%, transparent), color-mix(in srgb, var(--sw) 62%, transparent)),
+    var(--paper);
+}
+.sw-drop[data-finish="sheer"] .sw-light {
+  background:
+    radial-gradient(circle at 46% 42%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 46%),
+    radial-gradient(ellipse 62% 30% at 50% 4%, rgba(255, 255, 255, var(--sw-rim-a)), rgba(255, 255, 255, 0) 100%),
+    radial-gradient(
+      circle at 30% 25%,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0) 40%,
+      rgba(0, 0, 0, 0) 58%,
+      rgba(0, 0, 0, 0.16) 100%
+    );
+}
+.sw-drop[data-finish="base"],
+.sw-drop[data-finish="top"],
+.sw-drop[data-finish="treatment"] {
+  --sw-spec-a: 1;
+  --sw-rim-a: 0.3;
+  background:
+    linear-gradient(color-mix(in srgb, var(--sw) 40%, transparent), color-mix(in srgb, var(--sw) 40%, transparent)),
+    var(--paper);
+}
+/* duohrom: dve boje, druga ~45° dalje po tonu; bez relative-color podrške ostaje jedna boja */
+@supports (color: oklch(from red calc(l + 0.1) c h)) {
+  .sw-drop[data-finish="duochrome"] {
+    background: linear-gradient(135deg, var(--sw) 22%, oklch(from var(--sw) l c calc(h + 45)) 82%);
+  }
+}
+/* hover: kap se podigne 2 px, senka se pomeri i „produbi" — samo transform, bez repaint-a filtera */
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .sw-drop {
+    transform: translateY(-2px);
+  }
+  .group:hover .sw-shadow {
+    transform: translateY(1.5cqw) scale(1.03);
+  }
+}
+.group:focus-visible .sw-drop {
+  transform: translateY(-2px);
+}
+.group:active .sw-drop {
+  transform: translateY(0) scale(1.03);
+}
+
 /* Fokus prsten — jedan za ceo sajt */
 @utility focus-ring {
   outline: none;

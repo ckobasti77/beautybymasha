@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { ProductSwatch } from "@/components/shop/ProductSwatch";
@@ -60,7 +61,20 @@ export function ProductCard({
         className="flex h-full flex-col rounded-md p-2 text-center focus-ring"
       >
         <span className="relative mx-auto block w-full max-w-36">
-          <ProductSwatch product={product} sizes={sizes} priority={priority} />
+          <ProductSwatch hex={product.hex} finish={product.finish} className="w-full">
+            {product.localAvif ? (
+              // Fotografija je u toku kapi (`fill`), pa crossfade ne pomera raspored; kreće sa
+              // zadrškom da gloss sweep prvi pređe preko reljefa. Entity nema sliku — ostaje kap.
+              <Image
+                src={product.localAvif}
+                alt=""
+                fill
+                sizes={sizes}
+                priority={priority}
+                className="object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100 can-hover:group-focus-within:opacity-100"
+              />
+            ) : null}
+          </ProductSwatch>
           {soldOut ? (
             <span className="absolute inset-x-0 bottom-1 flex justify-center">
               <Badge tone="neutral">Rasprodato</Badge>

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Reveal } from "@/components/motion/Reveal";
+import { ProductSwatch } from "@/components/shop/ProductSwatch";
 import { Section } from "@/components/site/Section";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -60,23 +61,18 @@ export function ShopHighlights() {
       <Reveal as="ul" stagger={0.05} className="mt-12 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
         {PICKED.map((p) => (
           <li key={p.slug} className="group">
-            <span
-              // Fluidna veličina: fiksni px krug ume da bude širi od svoje kolone na 390 px.
-              className="swatch-gloss mx-auto block aspect-square w-full max-w-32 rounded-pill ring-1 ring-line"
-              style={{ backgroundColor: p.hex }}
-              aria-hidden
-            >
+            {/* Fluidna veličina: fiksni px krug ume da bude širi od svoje kolone na 390 px. */}
+            <ProductSwatch hex={p.hex} finish={p.finish} className="mx-auto w-full max-w-32">
               {p.localAvif ? (
                 <Image
                   src={p.localAvif}
                   alt=""
-                  width={320}
-                  height={320}
+                  fill
                   sizes="128px"
-                  className="size-full rounded-pill object-cover opacity-0 transition-opacity duration-300 ease-out-expo group-hover:opacity-100"
+                  className="object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100"
                 />
               ) : null}
-            </span>
+            </ProductSwatch>
             <p className="mt-4 text-center text-sm font-semibold text-fg">{p.name}</p>
             <p className="num mt-1 text-center text-sm text-fg-muted">{formatRsd(p.priceRsd)}</p>
             {p.bestseller ? (

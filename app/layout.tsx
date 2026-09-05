@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Manrope, Sacramento } from "next/font/google";
 import { Providers } from "@/components/providers/Providers";
+import { SwatchDefs } from "@/components/shop/SwatchDefs";
 import { SkipLink } from "@/components/site/SkipLink";
 import { hideCss } from "@/constants/textRevealConfig";
 import { darkTheme, palette } from "@/lib/palette";
@@ -85,6 +86,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <SkipLink />
+        {/* Jedan <defs> sa filterima za kap laka — 70 swatch-eva ga deli po id-u. */}
+        <SwatchDefs />
         <Providers>{children}</Providers>
       </body>
     </html>

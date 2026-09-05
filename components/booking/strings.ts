@@ -77,6 +77,13 @@ export const booking = {
     privacy: "Broj telefona koristimo samo da potvrdimo ovaj termin.",
   },
 
+  /** Usluga stigla iz cenovnika (deep link `#zakazivanje?usluga=…`). */
+  preset: {
+    label: "Zakazujete",
+    change: "Promenite uslugu",
+    announced: (title: string) => `Izabrali ste: ${title}. Sledeći korak je izbor lokala.`,
+  },
+
   summary: {
     title: "Vaš izbor",
     location: "Lokal",

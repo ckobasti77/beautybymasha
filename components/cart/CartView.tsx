@@ -8,8 +8,10 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useCart } from "@/lib/cartStore";
 import { CartTotals, type CartQuote } from "@/components/cart/CartTotals";
+import { ProductSwatch } from "@/components/shop/ProductSwatch";
 import { Button } from "@/components/ui/Button";
 import { formatRsd } from "@/lib/format";
+import { productBySlug } from "@/lib/products";
 import { MAX_QTY_PER_LINE } from "@/lib/shop";
 import type { CartItem } from "@/lib/cart";
 
@@ -63,12 +65,21 @@ function Line({
       <Link
         href={`/shop/${line.slug}`}
         aria-label={line.name}
-        className="relative size-16 shrink-0 overflow-hidden rounded-pill ring-1 ring-line focus-ring"
-        style={{ backgroundColor: line.hex }}
+        className="group relative block size-16 shrink-0 rounded-pill focus-ring"
       >
-        {line.imagePath ? (
-          <Image src={line.imagePath} alt="" fill sizes="64px" className="object-cover" />
-        ) : null}
+        {/* Finiš nosi statički katalog (server u ponudi šalje samo hex); proizvod
+            uvezen kroz admin koga tamo nema pada na kremasti finiš. */}
+        <ProductSwatch hex={line.hex} finish={productBySlug(line.slug)?.finish ?? "creme"} className="w-full">
+          {line.imagePath ? (
+            <Image
+              src={line.imagePath}
+              alt=""
+              fill
+              sizes="64px"
+              className="object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100"
+            />
+          ) : null}
+        </ProductSwatch>
       </Link>
 
       <div className="min-w-0 flex-1">

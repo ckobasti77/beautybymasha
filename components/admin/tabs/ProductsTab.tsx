@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Download, ImagePlus, Package, Percent, Upload } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
+import { ProductSwatch } from "@/components/shop/ProductSwatch";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -230,11 +231,7 @@ function ProductCard({
       </label>
 
       <button type="button" onClick={onOpen} className="flex flex-col items-start gap-2 text-left focus-ring">
-        <span
-          aria-hidden
-          className="size-12 shrink-0 rounded-pill border border-line"
-          style={{ backgroundColor: product.hex }}
-        />
+        <ProductSwatch hex={product.hex} finish={product.finish} size={48} className="shrink-0" />
         <span className="line-clamp-2 text-body-sm font-semibold text-fg">{product.name}</span>
         <span className="num text-caption text-fg-muted">{product.sku}</span>
         <span className="num flex items-baseline gap-1.5">
@@ -295,11 +292,7 @@ function EditSheet({
     <Sheet open onClose={onClose} title={product.name} description={`Šifra ${product.sku}`}>
       <div className="flex flex-col gap-4 pt-1">
         <div className="flex items-center justify-between">
-          <span
-            aria-hidden
-            className="size-12 rounded-pill border border-line"
-            style={{ backgroundColor: product.hex }}
-          />
+          <ProductSwatch hex={product.hex} finish={product.finish} size={48} />
           <SaveHint state={state} error={error} />
         </div>
 

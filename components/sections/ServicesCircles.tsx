@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Reveal } from "@/components/motion/Reveal";
+import { PriceGroupLink } from "@/components/sections/PriceGroupLink";
 import { Section } from "@/components/site/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { photoById } from "@/lib/photos";
@@ -8,7 +9,8 @@ import { countServicesIn, serviceCategories } from "@/lib/serviceCategories";
 /**
  * Pet krugova (docs/BRAND.md §7, tačka 4). Krug je motiv iz logotipa, pa je i ikona
  * kategorije krug — bez ijedne dodatne slike, samo njena fotografija u maski.
- * Svaki krug vodi na cenovnik sa filterom (`#cenovnik?g=…` čita `PriceList`).
+ * Svaki krug vodi u cenovnik sa uključenim čipom svoje prve grupe (`PriceGroupLink`,
+ * `#cenovnik-<grupa>`): „Nokti" otvara Negu ruku, a Nega nogu je čip do nje.
  *
  * Reveal animira mrežu (kontejner), text-reveal reči u naslovima. Nikad oba na
  * istom čvoru — docs/MOTION.md.
@@ -28,8 +30,8 @@ export function ServicesCircles() {
           const photo = photoById(c.photoId);
           return (
             <li key={c.key}>
-              <a
-                href={`#cenovnik-${c.groups[0]}`}
+              <PriceGroupLink
+                group={c.groups[0]}
                 className="group flex flex-col items-center gap-4 rounded-md p-2 text-center focus-ring"
               >
                 {/* Fluidna veličina: fiksni px krug ume da bude širi od svoje kolone na 390 px. */}
@@ -51,7 +53,7 @@ export function ServicesCircles() {
                     {countServicesIn(c)} u cenovniku
                   </span>
                 </span>
-              </a>
+              </PriceGroupLink>
               <p className="mt-3 text-center text-sm text-fg-muted">{c.blurb}</p>
             </li>
           );

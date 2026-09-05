@@ -29,3 +29,16 @@ export function formatDuration(minutes: number): string {
 export function formatPercent(n: number): string {
   return `${formatNumber(n)}%`;
 }
+
+/**
+ * Srpska množina: 1 → `one`, 2–4 → `few`, ostalo → `many`; 11–14 su uvek `many`.
+ * `plural(22, "usluga", "usluge", "usluga")` → "usluge", `plural(144, …)` → "usluge".
+ */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(Math.trunc(n));
+  const last = abs % 10;
+  const last2 = abs % 100;
+  if (last === 1 && last2 !== 11) return one;
+  if (last >= 2 && last <= 4 && !(last2 >= 12 && last2 <= 14)) return few;
+  return many;
+}

@@ -2,6 +2,8 @@
 
 import { BottleShowcase } from "@/components/three/BottleShowcase";
 import { useHoveredShade } from "@/components/shop/hoveredShade";
+import { ProductSwatch } from "@/components/shop/ProductSwatch";
+import { products } from "@/lib/products";
 
 /**
  * Bočica u zaglavlju `/shop`. Tečnost prati nijansu nad kojom je pokazivač na
@@ -9,11 +11,13 @@ import { useHoveredShade } from "@/components/shop/hoveredShade";
  *
  * Ceo blok je desktop-only (`hidden md:block` na roditelju u `app/shop/page.tsx`),
  * jer 3D ionako ne sme ispod 768 px — tako telefon ne dobije ni prazno mesto.
- * Kad je desktop ali WebGL ne sme (npr. „smanji kretanje"), ostaje krug boje.
+ * Kad je desktop ali WebGL ne sme (npr. „smanji kretanje"), ostaje kap laka u toj
+ * nijansi; finiš se nađe po hex-u u katalogu (hover nosi samo hex).
  */
 export function ShopHeroBottle({ defaultHex }: { defaultHex: string }) {
   const hovered = useHoveredShade();
   const hex = hovered ?? defaultHex;
+  const finish = products.find((p) => p.hex === hex)?.finish ?? "creme";
 
   return (
     <BottleShowcase
@@ -22,11 +26,7 @@ export function ShopHeroBottle({ defaultHex }: { defaultHex: string }) {
       className="aspect-[3/4] w-full"
       fallback={
         <div className="flex aspect-[3/4] w-full items-center justify-center">
-          <span
-            aria-hidden
-            className="block aspect-square w-2/3 rounded-pill ring-1 ring-line"
-            style={{ backgroundColor: hex }}
-          />
+          <ProductSwatch hex={hex} finish={finish} className="w-2/3" />
         </div>
       }
     />

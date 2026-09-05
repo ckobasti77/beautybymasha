@@ -1,8 +1,85 @@
 # STATUS
 
+Stanje posle koraka **11 — cenovnik kao ulaz u zakazivanje + swatch kao kap laka**
+(ispod je i zatečeno stanje posle koraka 08).
+Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 11 — šta je dodato
+
+### Cenovnik (`components/pricelist/`, `lib/priceList.ts`, `lib/serviceSearch.ts`, `lib/priceListView.ts`)
+
+- **Šest čipova grupa** u lepljivoj traci ispod navigacije (Nega ruku · Nega nogu ·
+  Depilacija · Masaža · Trepavice i obrve · Ostalo); Depilacija ima pod-čipove za četiri
+  vrste. Klik je filter, ne skok. Na 390 px traka čipova se skroluje vodoravno.
+- **Pretraga sa sinonimima**: „gel" nalazi trajni lak i ORLY gel, „obrve" nalazi kanu,
+  lift i korekciju obrva, „šećer" i „secer" daju isto. Više reči je presek. Pogodak se boji
+  u naslovu. Pretraga i čip se isključuju (kucanje briše čip, pa nema skrivenih pogodaka).
+- **Bez filtera**: blok „Najčešće se zakazuje" (6 usluga) + prvih 5 redova svake grupe i
+  dugme „Sve usluge u grupi … (n)". Svih 144 stavki je uvek u HTML-u (skrivene nose
+  `hidden`), pa pretraživači vide ceo cenovnik.
+- **Red usluge**: naziv · trajanje · cena · **„Zakažite"**. Ispod 768 px cela kartica je
+  dodirljiva. Dodaci (`addon`) su čipovi ispod grupe („French +300"), paketi nose oznaku
+  „paket od 10" i „Raspitajte se" (poziv), stavke bez cene pišu „na upit" i nude „Pozovite".
+- Ispod Nege ruku i Nege nogu: red **„Lakovi koje koristimo"** → `/shop`, sa četiri kapi.
+- Krugovi iz sekcije Usluge (`PriceGroupLink`) uključuju čip svoje grupe i doskroluju
+  do naslova (`#cenovnik-<grupa>` radi i kao direktan link i bez JS-a).
+
+### „Zakažite" → čarobnjak (`lib/sectionIntent.ts`, `lib/useHashIntent.ts`, `components/booking/`)
+
+- Klik postavlja `#zakazivanje?usluga=<key>` (bez novog unosa u istoriju), šalje `bbm:book`
+  i glatko skroluje do čarobnjaka; čarobnjak upiše uslugu, ostane na koraku Lokacija
+  (ili ode pravo na Dan i vreme ako je lokal već izabran) i **preskače korak Usluga**.
+  Tačka „Usluga" nosi ✓, u formi stoji „Zakazujete: Manikir · 45 min · 2.300 RSD" i
+  dugme „Promenite uslugu" (i u rezimeu).
+- Isti URL radi direktno (`/#zakazivanje?usluga=manikir`), a nepoznat ili nebookable
+  ključ samo doskroluje do čarobnjaka, bez greške. Posle poslatog zahteva ili
+  „ispočetka" hash se briše, pa reload ne vraća izbor.
+
+### Swatch kao kap laka (`components/shop/ProductSwatch.tsx`, `SwatchDefs.tsx`, `lib/swatch.ts`, `app/globals.css` → `.sw…`)
+
+- Čist CSS + tri SVG filtera (`feTurbulence`, `feColorMatrix`, `feDisplacementMap`) u
+  **jednom `<defs>`** u `app/layout.tsx`; 70 kapi ga deli po id-u. Bez ijedne slike — radi i
+  za 20 Entity nijansi bez fotografije.
+- Po finišu: creme glatko · sheer providno · shimmer fino zrno · glitter konfeti · holo
+  duga preko glitera · metallic vrtlog · duochrome dvobojni preliv · base/top/treatment
+  providna kap. Oblik i okret teksture su hash hex-a (isti hex → ista kap, SSR-bezbedno).
+- Svuda ista komponenta: zid shopa, strana proizvoda (velika kap za Entity, mala uz
+  naslov), ORLY sekcija na landingu, admin (kartica i izmena), korpa, fallback bočice u
+  zaglavlju shopa. Gloss sweep ostaje i klizi preko reljefa; hover podiže kap 2 px i
+  produbljuje senku (samo `transform`, bez repaint-a filtera).
+
+### Provera
+
+```
+npm run typecheck   ✓
+npm run lint        ✓  (nula upozorenja)
+npm test            ✓  144 testa, 8 fajlova (+19 novih: čipovi, sinonimi, pregled, hash, kap)
+npm run build       ✓  83 strane
+```
+
+U browseru (Playwright, dev server na http://localhost:3001, 1440 px i 390 px):
+pretraga „gel" → 27 pogodaka uključujući „Manikir + trajni lak"; čip Nega ruku → 22 usluge
+i 13 dodataka; „Zakažite" na Manikir → hash `#zakazivanje?usluga=manikir`, naslov
+„U kom lokalu?", Manikir u rezimeu, tačka Usluga ✓, posle lokala „Dalje" vodi na „Kada vam
+odgovara?"; direktan URL radi; krug „Masaža" uključuje čip i doskroluje. Na 390 px: čipovi se
+skroluju (754 od 375 px), 0 px prekoračenja, dodir na naslov reda otvara čarobnjak.
+Zid shopa: 70 kapi, svih 10 finiša; 60 fps tokom skrola (144 frejma u 2,4 s, najduži
+razmak 34 ms). Provera otkrivanja teksta iz `docs/MOTION.md`: prazan niz, 0 `pending`,
+0 `.reveal-word`, 0 `.pin-spacer` — na `/` (390 i 1440) i na `/shop`.
+
+### Šta čeka / napomene
+
+| Šta | Zašto |
+| --- | --- |
+| `lib/priceList.ts` → `MOST_WANTED_KEYS` | šest „najčešćih" usluga je iz spec-a — **[POTVRDITI kod vlasnice]** koje se zaista najčešće zakazuju |
+| Dugme se zove **„Zakažite"**, ne „Zakaži" | vi-forma kao ostatak sajta (nav „Zakažite", „Pošaljite zahtev"); menja se na jednom mestu: `components/pricelist/strings.ts` → `book` |
+| iOS Safari i SVG filteri | WebKit filtere crta softverski; na iPhone-u nije mereno (nema uređaja). Ako zid zapne, tekstura se prebacuje na `background-image` sa data-URI SVG šumom (jedan raster po veličini), bez promene komponente |
+| Dev server na portu 3001 | pripada paralelnoj sesiji (Next 16 odbija drugi `next dev` u istom dir-u); provere su rađene protiv njega preko HMR-a, nije gašen |
+
+---
+
 Stanje posle koraka **08 — 3D bočica laka** (nadograđuje korak 07: SEO, demo podaci,
 pristupačnost, performanse, priprema za deploy).
-Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Provera koja prolazi
 

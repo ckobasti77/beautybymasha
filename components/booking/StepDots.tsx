@@ -6,21 +6,26 @@ import { STEPS, booking } from "./strings";
 /**
  * Četiri koraka. Klik na završeni korak vraća nazad; tekući i budući su indikatori.
  * Krug je motiv iz logotipa (docs/BRAND.md §4), pa su i koraci krugovi.
+ *
+ * `completed` označava korak završen mimo redosleda — usluga izabrana u cenovniku
+ * pre lokala: tačka „Usluga" nosi ✓ dok gost još bira lokal, i sme da se otvori.
  */
 export function StepDots({
   step,
   onJump,
   disabled = false,
+  completed,
 }: {
   step: number;
   onJump: (i: number) => void;
   disabled?: boolean;
+  completed?: (index: number) => boolean;
 }) {
   const total = STEPS.length;
   return (
     <ol className="flex flex-wrap items-center gap-1" aria-label={booking.stepOf(step + 1, total)}>
       {STEPS.map((label, i) => {
-        const done = i < step;
+        const done = i < step || (i !== step && (completed?.(i) ?? false));
         const current = i === step;
         return (
           <li key={label} className="flex items-center gap-1">

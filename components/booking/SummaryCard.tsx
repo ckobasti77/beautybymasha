@@ -14,8 +14,11 @@ export type SummaryData = {
   startMin: number | null;
 };
 
-/** Rezime uz čarobnjak: puni se dok gost prolazi korake, prazan red se ne prikazuje. */
-export function SummaryCard({ data }: { data: SummaryData }) {
+/**
+ * Rezime uz čarobnjak: puni se dok gost prolazi korake, prazan red se ne prikazuje.
+ * `onChangeService` (usluga stigla iz cenovnika) daje „Promenite uslugu" ispod reda.
+ */
+export function SummaryCard({ data, onChangeService }: { data: SummaryData; onChangeService?: () => void }) {
   const location = data.locationKey ? locationByKey(data.locationKey) : null;
   const service = data.serviceKey ? serviceByKey(data.serviceKey) : undefined;
   const when =
@@ -50,6 +53,18 @@ export function SummaryCard({ data }: { data: SummaryData }) {
           ))}
         </dl>
       )}
+      {service && onChangeService ? (
+        // div, ne p: text-reveal bi <p> sa dugmetom sakrio do ulaska u kadar.
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={onChangeService}
+            className="min-h-11 rounded-pill text-sm font-semibold text-link underline underline-offset-4 focus-ring"
+          >
+            {booking.preset.change}
+          </button>
+        </div>
+      ) : null}
       <p className="mt-4 text-caption text-fg-muted">{booking.summary.priceNote}</p>
     </aside>
   );

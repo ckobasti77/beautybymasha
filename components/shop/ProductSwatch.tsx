@@ -1,52 +1,46 @@
-import Image from "next/image";
-import type { Product } from "@/lib/products";
+import type { CSSProperties, ReactNode } from "react";
+import type { Finish } from "@/lib/products";
+import { TEXTURED_FINISHES, swatchStyle } from "@/lib/swatch";
 
 /**
- * Krug boje laka — motiv iz logotipa (docs/BRAND.md §4).
+ * Kap laka snimljena odozgo (spec 11 B, referenca ORLY „Colors & Finishes"): sjaj
+ * gore-levo, tamniji obod dole, dubina tečnosti i tekstura po finišu. Čist CSS
+ * (`.sw…` u globals.css) + SVG filteri iz jednog `<defs>` (`SwatchDefs`). Bez slika —
+ * radi za svih 70 boja, i za 20 Entity nijansi bez fotografije.
  *
- * Hover pušta gloss sweep (`swatch-gloss` u globals.css, 600 ms dijagonalni
- * specular). ORLY ima fotografiju, pa se ona posle sweep-a crossfade-uje preko
- * boje. Entity nema fotografiju (`swatchOnly`) — tu ostaje samo boja i sweep;
- * slika koje nemamo se ne izmišlja.
+ * Jedna komponenta za ceo sajt: zid shopa, strana proizvoda, ORLY sekcija na landingu,
+ * admin i korpa. `size` u px za fiksne kapi (admin, korpa); bez `size` kap puni
+ * širinu roditelja (`className="w-full"`), a sve mere unutra su u `cqw`, pa izgleda
+ * isto na 48 px i na 400 px.
  *
- * Kontejner mora da nosi klasu `group`. Na dodir nema hovera: `can-hover:`
- * varijanta gasi crossfade, a kartica se na tap blago uveća.
+ * `children` je opciona fotografija proizvoda koja se na hover crossfade-uje preko
+ * kapi (docs/BRAND.md §7) — seče se na oblik kapi i ostaje ispod gloss sweep-a.
+ * Kontejner mora da nosi klasu `group`: sweep, podizanje i senka slušaju `.group:hover`.
  */
 export function ProductSwatch({
-  product,
-  sizes,
-  priority = false,
+  hex,
+  finish,
+  size,
   className,
+  children,
 }: {
-  product: Product;
-  sizes: string;
-  priority?: boolean;
+  hex: string;
+  finish: Finish;
+  size?: number;
   className?: string;
+  children?: ReactNode;
 }) {
+  const style = { ...swatchStyle(hex), ...(size !== undefined ? { width: size } : {}) } as CSSProperties;
   return (
-    <span
-      className={[
-        "swatch-gloss relative block aspect-square w-full rounded-pill ring-1 ring-line",
-        "transition-transform duration-300 ease-out-expo can-hover:group-hover:scale-[1.02] group-active:scale-[1.04]",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={{ backgroundColor: product.hex }}
-      aria-hidden
-    >
-      {product.localAvif ? (
-        <Image
-          src={product.localAvif}
-          alt=""
-          fill
-          sizes={sizes}
-          priority={priority}
-          // Slika je već u toku (`fill`), pa crossfade ne pomera ništa u rasporedu.
-          // Kreće sa zadrškom da sweep prvi pređe preko boje.
-          className="rounded-pill object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100 can-hover:group-focus-within:opacity-100"
-        />
-      ) : null}
+    <span className={["sw", className].filter(Boolean).join(" ")} style={style} aria-hidden>
+      <span className="sw-shadow" />
+      <span className="sw-drop swatch-gloss" data-finish={finish}>
+        {TEXTURED_FINISHES.has(finish) ? <span className="sw-tex" /> : null}
+        {finish === "holo" ? <span className="sw-tint" /> : null}
+        <span className="sw-light" />
+        <span className="sw-spec" />
+        {children}
+      </span>
     </span>
   );
 }

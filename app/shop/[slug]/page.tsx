@@ -118,9 +118,9 @@ export default async function ProductPage({ params }: PageProps<"/shop/[slug]">)
                     className="aspect-square w-full object-cover"
                   />
                 ) : (
-                  // Entity nema fotografiju: veliki krug boje je ceo prikaz.
+                  // Entity nema fotografiju: velika kap laka je ceo prikaz.
                   <div className="flex aspect-square w-full items-center justify-center p-10">
-                    <ProductSwatch product={product} sizes="(min-width: 768px) 40vw, 80vw" priority />
+                    <ProductSwatch hex={product.hex} finish={product.finish} className="w-full" />
                   </div>
                 )}
               </Reveal>
@@ -136,6 +136,8 @@ export default async function ProductPage({ params }: PageProps<"/shop/[slug]">)
             </div>
 
             <div>
+              {/* Nijansa kao kap i uz naslov — ista kap kao na zidu, pa gost zna da je na pravom mestu. */}
+              <ProductSwatch hex={product.hex} finish={product.finish} size={64} className="mb-5" />
               <p className="text-overline text-link">{BRAND_LABELS[product.brand]}</p>
               <h1 className="mt-3 text-h1 text-fg">{product.name}</h1>
 
