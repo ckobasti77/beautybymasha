@@ -1,0 +1,184 @@
+﻿Everything green. No dev server was started, so nothing is left running.
+
+## Šta je napravljeno
+
+**`lib/slots.ts`** — čista aritmetika (bez Convexa, bez DOM-a). Ključna razlika od reference: `buildDaySlots` više ne gasi slot čim postoji jedan termin preko njega — broji preklapanja i poredi sa kapacitetom (`countOverlapping`, `hasCapacity`). Pauze i dalje gase apsolutno. `normalizeRanges` se namerno primenjuje na radno vreme i pauze, **nikad** na termine — spajanje bi pojelo broj koji nosi kapacitet.
+
+**Šema** — `locations`, `capacities`, `schedules`, `scheduleOverrides`, `blocks`, `services` (svih 144 iz baze, ne iz koda), `bookings`, `settings`. Indeks `by_location_resource_date` nosi proveru kapaciteta; on je i razlog što dva istovremena zahteva za različite resurse ne prave lažni konflikt.
+
+**Funkcije** — `admin.init` (idempotentan seed iz `data/*.json`), `availability.slots/week`, `bookings.create/list/pending/pendingCount/confirm/reject/cancel/createManual/move`, CRUD za rasporede, izuzetke, pauze, usluge, kapacitete i podešavanja, cron za isticanje, `notify.ts` (bez `RESEND_API_KEY` samo loguje i ne ruši mutaciju).
+
+Autorizacija je `assertAdminKey` u `convex/lib/admin.ts` — jedan fajl, telo se u promptu 3 zameni Convex Auth proverom, pozivi ostaju isti.
+
+## Testovi — 58 prolazi
+
+Svaki slučaj iz specifikacije ima svoj test: dodirivanje krajeva nije preklapanje, podeljena smena, tri manikira u 10:00 prolaze a četvrti pada, kapacitet po resursu (puni nokti ne diraju masažu), kapacitet po lokaciji (puna Ljubičica ne blokira Mimozu), Mimoza ponedeljkom nema nijedan slot, `override kind="off"` gasi dan, leadTime, i otkazani/odbijeni termini oslobađaju mesto.
+
+Test najave sam prepravio da bude determinističan — `now` se prosleđuje upitu, pa pravilo važi bez obzira na to u koje doba dana testovi rade.
+
+## Dve odluke koje vredi da znaš
+
+- **Fail-closed pre seed-a:** bez reda u `capacities` kapacitet je 0, dakle nijedan termin. Bolje prazan kalendar nego dupli termin.
+- **Neradni dan ima svoju poruku** (`MESSAGES.closed`), odvojenu od „termin je upravo popunjen" — gostu to nije isto.
+
+## Dve stvari za tebe
+
+1. `npx convex ai-files install` (pokrenuo sam ga jer je spec tražio `guidelines.md`, kog nije bilo) usput je dopisao pokazivač na guidelines u `CLAUDE.md` i `AGENTS.md` — to sam zadržao — ali je i instalirao 33 Convex skila u `.claude/skills/`. Pošto `CLAUDE.md` izričito kaže „51 skill", obrisao sam ih zajedno sa `.agents/` i `skills-lock.json`; vraćaju se istom komandom ako ih želiš.
+
+2. Kapaciteti su i dalje **[POTVRDITI]** — Ljubičica 3/1/1, Mimoza 2/1/1 iz `site.json` su naša pretpostavka, ne njena reč. Da bi backend proradio na dev deploymentu, treba `npx convex env set ADMIN_KEY <ključ>` pa pozvati `admin.init`; to nisam radio jer piše u živu bazu.
+
+
+===== PROVERA: convex =====
+▌ Developing against deployment:
+▌ [Development] ckobasti77:beautybymasha:dev/jovan-milojevic (dev) (dashboard: https://dashboard.convex.dev/t/ckobasti77/beautybymasha/grand-bandicoot-904)
+▌ └─ https://grand-bandicoot-904.eu-west-1.convex.cloud
+- Preparing Convex functions...
+
+[32m✔[39m 05:02:14 Convex functions ready! (911.95ms)
+
+===== PROVERA: typecheck =====
+
+> beautybymasha@0.1.0 typecheck
+> tsc --noEmit
+
+
+===== PROVERA: lint =====
+
+> beautybymasha@0.1.0 lint
+> eslint
+
+
+===== PROVERA: test =====
+
+> beautybymasha@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90mC:/Users/admin/Desktop/Web Dev Projects/beautybymasha[39m
+
+ [32m✓[39m lib/slots.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mkapacitet[2m > [22m[2mtri manikira u 10:00 prolaze, ČETVRTI pada
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Farbanje obrva, 2026-09-09 10:00–10:15)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 11:00–11:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 13:00–13:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 15:00–15:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 14:00–14:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+ [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 723[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m58 passed[39m[22m[90m (58)[39m
+[2m   Start at [22m 05:02:19
+[2m   Duration [22m 1.19s[2m (tests 48%, import 33%, transform 16%, environment 3%, worker 1%)[22m
+
+
+===== PROVERA: build =====
+
+> beautybymasha@0.1.0 build
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 21ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1082ms
+  Running TypeScript ...
+  Finished TypeScript in 1526ms ...
+  Collecting page data using 6 workers ...
+  Generating static pages using 6 workers (0/5) ...
+  Generating static pages using 6 workers (1/5) 
+  Generating static pages using 6 workers (2/5) 
+  Generating static pages using 6 workers (3/5) 
+✓ Generating static pages using 6 workers (5/5) in 628ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /apple-icon
+└ ○ /icon
+
+
+○  (Static)  prerendered as static content
+
