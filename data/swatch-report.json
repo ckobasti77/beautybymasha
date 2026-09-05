@@ -1,0 +1,402 @@
+[
+  {
+    "slug": "vintage",
+    "name": "Vintage",
+    "declared": "#6ECFC0",
+    "extracted": "#80DCBC",
+    "confident": true,
+    "keptRatio": 0.813
+  },
+  {
+    "slug": "gumdrop",
+    "name": "Gumdrop",
+    "declared": "#B4E3D5",
+    "extracted": "#60C4BF",
+    "confident": true,
+    "keptRatio": 0.879
+  },
+  {
+    "slug": "kiss-the-bride",
+    "name": "Kiss The Bride",
+    "declared": "#F3C9CE",
+    "extracted": "#E8D4D4",
+    "confident": true,
+    "keptRatio": 0.274
+  },
+  {
+    "slug": "cupcake",
+    "name": "Cupcake",
+    "declared": "#F2CDCB",
+    "extracted": "#DEA0AC",
+    "confident": true,
+    "keptRatio": 0.882
+  },
+  {
+    "slug": "confetti",
+    "name": "Confetti",
+    "declared": "#F6D8D8",
+    "extracted": "#ECCFDE",
+    "confident": true,
+    "keptRatio": 0.385
+  },
+  {
+    "slug": "white-tips",
+    "name": "White Tips",
+    "declared": "#F7F3EC",
+    "extracted": "#BCA687",
+    "confident": true,
+    "keptRatio": 0.198
+  },
+  {
+    "slug": "roam-with-me",
+    "name": "Roam With Me",
+    "declared": "#C99A90",
+    "extracted": "#D2A89D",
+    "confident": true,
+    "keptRatio": 0.873
+  },
+  {
+    "slug": "country-club-khaki",
+    "name": "Country Club Khaki",
+    "declared": "#C2A188",
+    "extracted": "#BE9681",
+    "confident": true,
+    "keptRatio": 0.879
+  },
+  {
+    "slug": "coffee-break",
+    "name": "Coffee Break",
+    "declared": "#A9836E",
+    "extracted": "#A97663",
+    "confident": true,
+    "keptRatio": 0.89
+  },
+  {
+    "slug": "cake-pop",
+    "name": "Cake Pop",
+    "declared": "#DCC3DC",
+    "extracted": "#E8D3E3",
+    "confident": true,
+    "keptRatio": 0.548
+  },
+  {
+    "slug": "kaleidoscope-eyes",
+    "name": "Kaleidoscope Eyes",
+    "declared": "#E88BC0",
+    "extracted": "#F8B1E2",
+    "confident": true,
+    "keptRatio": 0.852
+  },
+  {
+    "slug": "alabaster-verve",
+    "name": "Alabaster Verve",
+    "declared": "#C09BA5",
+    "extracted": "#D47084",
+    "confident": true,
+    "keptRatio": 0.829
+  },
+  {
+    "slug": "rage",
+    "name": "Rage",
+    "declared": "#C69A92",
+    "extracted": "#A37D7B",
+    "confident": true,
+    "keptRatio": 0.764
+  },
+  {
+    "slug": "beautifully-bizarre",
+    "name": "Beautifully Bizarre",
+    "declared": "#E4CBD6",
+    "extracted": "#F7C4D7",
+    "confident": true,
+    "keptRatio": 0.671
+  },
+  {
+    "slug": "magic-moment",
+    "name": "Magic Moment",
+    "declared": "#C2AAD8",
+    "extracted": "#9A93B5",
+    "confident": true,
+    "keptRatio": 0.779
+  },
+  {
+    "slug": "flight-of-fancy",
+    "name": "Flight of Fancy",
+    "declared": "#9B7BC4",
+    "extracted": "#4E0636",
+    "confident": true,
+    "keptRatio": 0.848
+  },
+  {
+    "slug": "dont-pop-my-balloon",
+    "name": "Don't Pop My Balloon",
+    "declared": "#EE8FC0",
+    "extracted": "#E467A2",
+    "confident": true,
+    "keptRatio": 0.853
+  },
+  {
+    "slug": "crawfords-wine",
+    "name": "Crawford's Wine",
+    "declared": "#7B2233",
+    "extracted": "#70090E",
+    "confident": true,
+    "keptRatio": 0.879
+  },
+  {
+    "slug": "star-spangled",
+    "name": "Star Spangled",
+    "declared": "#A31F35",
+    "extracted": "#57050B",
+    "confident": true,
+    "keptRatio": 0.803
+  },
+  {
+    "slug": "red-rock",
+    "name": "Red Rock",
+    "declared": "#7E2B31",
+    "extracted": "#56171D",
+    "confident": true,
+    "keptRatio": 0.886
+  },
+  {
+    "slug": "sunset-blvd",
+    "name": "Sunset Blvd",
+    "declared": "#C42C34",
+    "extracted": "#BD0A1C",
+    "confident": true,
+    "keptRatio": 0.907
+  },
+  {
+    "slug": "retrograde",
+    "name": "Retrograde",
+    "declared": "#2E7F8C",
+    "extracted": "#092D2B",
+    "confident": true,
+    "keptRatio": 0.57
+  },
+  {
+    "slug": "liquid-vinyl",
+    "name": "Liquid Vinyl",
+    "declared": "#14100F",
+    "extracted": "#151414",
+    "confident": false,
+    "keptRatio": 0.012
+  },
+  {
+    "slug": "sagebrush",
+    "name": "Sagebrush",
+    "declared": "#6C7360",
+    "extracted": "#515654",
+    "confident": false,
+    "keptRatio": 0
+  },
+  {
+    "slug": "canyon-clay",
+    "name": "Canyon Clay",
+    "declared": "#9A5B44",
+    "extracted": "#662C11",
+    "confident": true,
+    "keptRatio": 0.88
+  },
+  {
+    "slug": "nebula",
+    "name": "Nebula",
+    "declared": "#6B4A7A",
+    "extracted": "#302D41",
+    "confident": true,
+    "keptRatio": 0.61
+  },
+  {
+    "slug": "holy-holo",
+    "name": "Holy Holo!",
+    "declared": "#C9CBD2",
+    "extracted": "#7B9093",
+    "confident": true,
+    "keptRatio": 0.054
+  },
+  {
+    "slug": "kick-glass",
+    "name": "Kick Glass",
+    "declared": "#E8EEF0",
+    "extracted": "#D4ACB8",
+    "confident": true,
+    "keptRatio": 0.595
+  },
+  {
+    "slug": "anything-goes",
+    "name": "Anything Goes",
+    "declared": "#DCD4E8",
+    "extracted": "#D4A8BE",
+    "confident": true,
+    "keptRatio": 0.459
+  },
+  {
+    "slug": "feel-the-funk",
+    "name": "Feel the Funk",
+    "declared": "#D9518F",
+    "extracted": "#BC779C",
+    "confident": true,
+    "keptRatio": 0.896
+  },
+  {
+    "slug": "bonder",
+    "name": "Bonder - bazni lak",
+    "declared": "#EFE7DD",
+    "extracted": "#F9C386",
+    "confident": true,
+    "keptRatio": 0.985
+  },
+  {
+    "slug": "bonder-4oz",
+    "name": "Bonder - bazni lak 118 ml",
+    "declared": "#EFE7DD",
+    "extracted": "#F1BD55",
+    "confident": true,
+    "keptRatio": 0.438
+  },
+  {
+    "slug": "shining-armor",
+    "name": "Shining Armor - nadlak",
+    "declared": "#F2F4F5",
+    "extracted": "#51C7DF",
+    "confident": true,
+    "keptRatio": 0.573
+  },
+  {
+    "slug": "top2bottom",
+    "name": "Top2Bottom - baza i nadlak",
+    "declared": "#F0EDE8",
+    "extracted": "#7DCCE8",
+    "confident": true,
+    "keptRatio": 0.771
+  },
+  {
+    "slug": "wont-chip",
+    "name": "Won't Chip - zastitni nadlak",
+    "declared": "#F2EFEA",
+    "extracted": "#78CAE8",
+    "confident": true,
+    "keptRatio": 0.646
+  },
+  {
+    "slug": "polishield",
+    "name": "Polishield - nadlak sa UV filterom",
+    "declared": "#F1F1EE",
+    "extracted": "#78CBE7",
+    "confident": true,
+    "keptRatio": 0.638
+  },
+  {
+    "slug": "sec-n-dry",
+    "name": "Sec'n Dry - brzosusivi nadlak",
+    "declared": "#F3F0EB",
+    "extracted": "#7BCBE9",
+    "confident": true,
+    "keptRatio": 0.67
+  },
+  {
+    "slug": "matte-top",
+    "name": "Matte Top - mat nadlak",
+    "declared": "#E9E5DF",
+    "extracted": "#80CBE5",
+    "confident": true,
+    "keptRatio": 0.796
+  },
+  {
+    "slug": "nailtrition",
+    "name": "Nailtrition - tretman za rast",
+    "declared": "#F0DCD4",
+    "extracted": "#F9B5B3",
+    "confident": true,
+    "keptRatio": 0.965
+  },
+  {
+    "slug": "nail-defense",
+    "name": "Nail Defense - protiv lomljenja",
+    "declared": "#EBD9CF",
+    "extracted": "#F8C188",
+    "confident": true,
+    "keptRatio": 0.848
+  },
+  {
+    "slug": "nail-armor",
+    "name": "Nail Armor - za tanke nokte",
+    "declared": "#F0E3DA",
+    "extracted": "#F9B7B5",
+    "confident": true,
+    "keptRatio": 0.929
+  },
+  {
+    "slug": "cutique",
+    "name": "Cutique - za zanoktice",
+    "declared": "#E6EEE9",
+    "extracted": "#B445B2",
+    "confident": true,
+    "keptRatio": 0.166
+  },
+  {
+    "slug": "cuticle-oil-plus",
+    "name": "Cuticle Oil+ - ulje za zanoktice",
+    "declared": "#E8C98A",
+    "extracted": "#E6BA99",
+    "confident": true,
+    "keptRatio": 0.545
+  },
+  {
+    "slug": "argan-cuticle-drops",
+    "name": "Argan Oil Cuticle Drops",
+    "declared": "#E5C173",
+    "extracted": "#D18BD2",
+    "confident": true,
+    "keptRatio": 0.894
+  },
+  {
+    "slug": "cuticle-therapy-creme",
+    "name": "Cuticle Therapy Creme",
+    "declared": "#F5EDE4",
+    "extracted": "#D189D2",
+    "confident": true,
+    "keptRatio": 0.422
+  },
+  {
+    "slug": "breathable-protein-boost",
+    "name": "Breathable Protein Boost",
+    "declared": "#EFD9D2",
+    "extracted": "#B996A5",
+    "confident": true,
+    "keptRatio": 0.69
+  },
+  {
+    "slug": "breathable-calcium-boost",
+    "name": "Breathable Calcium Boost",
+    "declared": "#EDE6DC",
+    "extracted": "#7F9AB9",
+    "confident": true,
+    "keptRatio": 0.447
+  },
+  {
+    "slug": "nail-rescue-kit",
+    "name": "Nail Rescue Kit - set za popravku",
+    "declared": "#E3D7CB",
+    "extracted": "#CE8AC2",
+    "confident": true,
+    "keptRatio": 0.747
+  },
+  {
+    "slug": "flash-dry-drops",
+    "name": "Flash Dry Drops - kapi za susenje",
+    "declared": "#EFF3F2",
+    "extracted": "#78CEE9",
+    "confident": true,
+    "keptRatio": 0.567
+  },
+  {
+    "slug": "no-bite",
+    "name": "No Bite - protiv grickanja noktiju",
+    "declared": "#EDEAE4",
+    "extracted": "#BDE2A4",
+    "confident": true,
+    "keptRatio": 0.985
+  }
+]

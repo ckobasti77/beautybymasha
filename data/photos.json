@@ -1,0 +1,482 @@
+{
+  "bbm-01": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-01-card-1350.avif",
+    "photo": "/photos/bbm-01-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Nude bademasti nokti sa trajnim lakom, zenska ruka sa satom",
+    "tags": [
+      "nokti",
+      "trajni-lak",
+      "nude"
+    ],
+    "use": [
+      "galerija",
+      "usluge-nokti"
+    ]
+  },
+  "bbm-02": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-02-card-1350.avif",
+    "photo": "/photos/bbm-02-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Kratki crveni nokti ispred zida sa lakovima u salonu",
+    "tags": [
+      "nokti",
+      "trajni-lak",
+      "crvena",
+      "salon"
+    ],
+    "use": [
+      "galerija",
+      "shop-kontekst"
+    ]
+  },
+  "bbm-03": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-03-card-1350.avif",
+    "photo": "/photos/bbm-03-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Crveni nokti sa belim tackicama - nail art",
+    "tags": [
+      "nokti",
+      "nail-art",
+      "crvena"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-04": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-04-card-1350.avif",
+    "photo": "/photos/bbm-04-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Pedikir sa crnim trajnim lakom",
+    "tags": [
+      "pedikir",
+      "crna"
+    ],
+    "use": [
+      "galerija",
+      "usluge-pedikir"
+    ]
+  },
+  "bbm-05": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-05-card-1350.avif",
+    "photo": "/photos/bbm-05-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Nude french manikir na dugim noktima",
+    "tags": [
+      "nokti",
+      "french",
+      "nude"
+    ],
+    "use": [
+      "galerija",
+      "usluge-nokti"
+    ]
+  },
+  "bbm-06": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-06-card-1350.avif",
+    "photo": "/photos/bbm-06-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Tirkizno plavi dugi nokti - nijansa bliska boji brenda",
+    "tags": [
+      "nokti",
+      "tirkizna",
+      "brend-boja"
+    ],
+    "use": [
+      "galerija",
+      "hero",
+      "istaknuto"
+    ]
+  },
+  "bbm-07": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-07-card-1350.avif",
+    "photo": "/photos/bbm-07-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Bledo zuti nokti, dve ruke",
+    "tags": [
+      "nokti",
+      "zuta"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-08": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-08-card-1350.avif",
+    "photo": "/photos/bbm-08-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Pedikir sa kobalt plavim lakom",
+    "tags": [
+      "pedikir",
+      "plava"
+    ],
+    "use": [
+      "galerija",
+      "usluge-pedikir"
+    ]
+  },
+  "bbm-09": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-09-card-1350.avif",
+    "photo": "/photos/bbm-09-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Rezultat lash lift tretmana - podignute trepavice",
+    "tags": [
+      "trepavice",
+      "lash-lift"
+    ],
+    "use": [
+      "usluge-trepavice"
+    ],
+    "note": "Original je PRE/POSLE kartica - za prikaz efekta koristiti -card varijantu"
+  },
+  "bbm-10": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-10-card-1350.avif",
+    "photo": "/photos/bbm-10-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Tim salona Beauty by Masha",
+    "tags": [
+      "tim",
+      "salon",
+      "ljudi"
+    ],
+    "use": [
+      "o-nama"
+    ],
+    "note": "VAZNO: koristiti -card varijantu, crop je odsekao deo tima"
+  },
+  "bbm-11": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-11-card-1350.avif",
+    "photo": "/photos/bbm-11-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Nude pedikir na drvenom podu salona",
+    "tags": [
+      "pedikir",
+      "nude",
+      "salon"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-12": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-12-card-1350.avif",
+    "photo": "/photos/bbm-12-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Dugi crveni nokti, proizvodi za negu u pozadini",
+    "tags": [
+      "nokti",
+      "crvena",
+      "proizvodi"
+    ],
+    "use": [
+      "galerija",
+      "shop-kontekst"
+    ]
+  },
+  "bbm-13": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-13-card-1350.avif",
+    "photo": "/photos/bbm-13-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Koralni pedikir sa cvetnim nail art detaljem",
+    "tags": [
+      "pedikir",
+      "nail-art",
+      "koralna"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-14": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-14-card-1350.avif",
+    "photo": "/photos/bbm-14-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Bez nokti sa trajnim lakom",
+    "tags": [
+      "nokti",
+      "nude"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-15": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-15-card-1350.avif",
+    "photo": "/photos/bbm-15-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Cokoladno braon nokti",
+    "tags": [
+      "nokti",
+      "braon"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-16": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-16-card-1350.avif",
+    "photo": "/photos/bbm-16-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Duge pink nadogradjene nokte",
+    "tags": [
+      "nokti",
+      "pink",
+      "nadogradnja"
+    ],
+    "use": [
+      "galerija",
+      "istaknuto"
+    ]
+  },
+  "bbm-17": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-17-card-1350.avif",
+    "photo": "/photos/bbm-17-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Mlecno beli french na kratkim noktima",
+    "tags": [
+      "nokti",
+      "french",
+      "nude"
+    ],
+    "use": [
+      "galerija",
+      "hero"
+    ]
+  },
+  "bbm-18": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-18-card-1350.avif",
+    "photo": "/photos/bbm-18-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Roze nokti, ulja za negu u pozadini",
+    "tags": [
+      "nokti",
+      "roze",
+      "proizvodi"
+    ],
+    "use": [
+      "galerija",
+      "shop-kontekst"
+    ]
+  },
+  "bbm-19": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-19-card-1350.avif",
+    "photo": "/photos/bbm-19-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Pink nokti, snimak napolju",
+    "tags": [
+      "nokti",
+      "pink"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-20": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-20-card-1350.avif",
+    "photo": "/photos/bbm-20-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Crveni nokti uz crveni dzemper",
+    "tags": [
+      "nokti",
+      "crvena"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-21": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-21-card-1350.avif",
+    "photo": "/photos/bbm-21-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Dugi crveni nokti uz crnu tasnu",
+    "tags": [
+      "nokti",
+      "crvena"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-22": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-22-card-1350.avif",
+    "photo": "/photos/bbm-22-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Koralni nokti sa gliterom i nail art detaljem",
+    "tags": [
+      "nokti",
+      "glitter",
+      "koralna",
+      "nail-art"
+    ],
+    "use": [
+      "galerija"
+    ]
+  },
+  "bbm-23": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-23-card-1350.avif",
+    "photo": "/photos/bbm-23-photo-1350.avif",
+    "aspect": 0.7998,
+    "alt": "Nude nokti sa zlatnim detaljem, manikir u toku",
+    "tags": [
+      "nokti",
+      "nude",
+      "nail-art"
+    ],
+    "use": [
+      "galerija",
+      "hero"
+    ]
+  },
+  "bbm-24": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-24-card-1350.avif",
+    "photo": "/photos/bbm-24-photo-1350.avif",
+    "aspect": 0.5625,
+    "alt": "Zid sa ORLY i ENTITY lakovima u salonu Beauty by Masha",
+    "tags": [
+      "salon",
+      "orly",
+      "entity",
+      "proizvodi",
+      "ljudi"
+    ],
+    "use": [
+      "shop-hero",
+      "o-nama"
+    ],
+    "note": "VAZNO: koristiti -card varijantu. Na originalu pise: ORLY I ENTITY, CUVENI LAKOVI BEZ STETNIH SASTOJAKA, SAJAMSKI POPUST OD 10 DO 50%"
+  },
+  "_meta": {
+    "source": "Instagram @beautybymasha_belville, preuzeto 2026-09-05",
+    "rights": "Fotografije su vlasnistvo salona. Koriste se za demo prezentaciju vlasnici. Pre javnog objavljivanja sajta traziti originale i pismenu saglasnost.",
+    "variants": {
+      "card": "cela njena brendirana objava - koristi u galeriji, to JE njen identitet",
+      "photo": "izvucena fotografija bez wordmarka - koristi za hero, pozadine sekcija i shop kontekst"
+    },
+    "widths": [
+      640,
+      1080,
+      1350
+    ]
+  }
+}

@@ -1,26 +1,343 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+   Beauty by Masha — dizajn tokeni
+   Izvor: data/design-dna.json → design_system (+ docs/BRAND.md za kontraste).
+   Ne dodavati boje, senke ni fontove van profila.
+------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* brend — sirove vrednosti */
+  --mint: #57bfa8; /* logo krug — POVRŠINA, nikad tekst (2,2:1 na paper) */
+  --mint-deep: #2e8e7b; /* tekst-linkovi, hover, fokus (4,6:1 na paper) */
+  --mint-soft: #c9e9e1;
+  --mint-wash: #f0f9f6;
+  --rose: #e85a9b; /* rukopis — samo akcent, tekst ≥ 18,66px bold ili ikone */
+  --rose-soft: #fbdce9;
+  --ink: #12100f;
+  --ink-soft: #5a5450;
+  --paper: #faf6f1;
+  --paper-elev: #ffffff;
+  --sand: #ede2d6;
+
+  /* neutralna skala (DNA color.neutral.scale) */
+  --n-50: #faf6f1;
+  --n-100: #f4ede4;
+  --n-200: #ede2d6;
+  --n-300: #d9ccbd;
+  --n-400: #a79b8f;
+  --n-500: #7a716a;
+  --n-600: #5a5450;
+  --n-800: #2b2624;
+  --n-900: #12100f;
+
+  --success: #2e8e7b;
+  --warning: #b57a2b;
+  --danger: #c0442f;
+
+  /* semantika — svetla tema (podrazumevana, "beo papir") */
+  --bg: var(--paper);
+  --bg-elev: var(--paper-elev);
+  --bg-sunken: var(--n-100);
+  --fg: var(--ink);
+  --fg-muted: var(--ink-soft);
+  --line: var(--sand);
+  --line-strong: var(--n-300);
+  --brand: var(--mint); /* površina: primarno dugme, aktivna stanja */
+  --brand-fg: var(--ink); /* ink na mint = 8,1:1 (krem bi bio 2,1:1) */
+  --brand-hover: var(--mint-deep);
+  --brand-hover-fg: var(--paper); /* 4,6:1 */
+  --link: var(--mint-deep);
+  --accent: var(--rose);
+  --accent-soft: var(--rose-soft);
+  --tint: var(--mint-soft);
+  --tint-wash: var(--mint-wash);
+  --focus: var(--mint-deep);
+  --glass: rgba(250, 246, 241, 0.72);
+  --glass-line: rgba(18, 16, 15, 0.06);
+  --shadow-ink: 18, 16, 15;
+  /* tekst u boji stanja — izveden iz semantičkih boja da prođe AA na podlozi teme */
+  --success-text: var(--mint-deep);
+  --warning-text: color-mix(in oklab, var(--warning) 70%, var(--ink)); /* čist #B57A2B na paper je 3,4:1 */
+  --danger-text: var(--danger); /* 4,8:1 na paper */
+
+  /* ritam */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 150ms;
+  --dur-normal: 300ms;
+  --dur-macro: 600ms;
+
+  color-scheme: light;
+}
+
+/* tamna tema — toggle u navigaciji; akcent ostaje mint (na tamnom prolazi i kao tekst, 8,5:1) */
+:root[data-theme="dark"] {
+  --bg: #14100e;
+  --bg-elev: #1e1917;
+  --bg-sunken: #0f0c0a;
+  --fg: #f5efe9;
+  --fg-muted: var(--n-400);
+  --line: var(--n-800);
+  --line-strong: var(--n-600);
+  --link: var(--mint);
+  --accent-soft: color-mix(in oklab, var(--rose) 16%, transparent);
+  --tint: color-mix(in oklab, var(--mint) 20%, transparent);
+  --tint-wash: color-mix(in oklab, var(--mint) 8%, transparent);
+  --focus: var(--mint);
+  --glass: rgba(20, 16, 14, 0.72);
+  --glass-line: rgba(245, 239, 233, 0.08);
+  --shadow-ink: 0, 0, 0;
+  --success-text: var(--mint);
+  --warning-text: color-mix(in oklab, var(--warning) 75%, var(--fg));
+  --danger-text: color-mix(in oklab, var(--danger) 70%, var(--fg)); /* čist #C0442F na tamnom je 3,7:1 */
+
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* sirove */
+  --color-mint: var(--mint);
+  --color-mint-deep: var(--mint-deep);
+  --color-mint-soft: var(--mint-soft);
+  --color-mint-wash: var(--mint-wash);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-elev: var(--paper-elev);
+  --color-sand: var(--sand);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  /* semantičke — koristiti ove u komponentama */
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-sunken: var(--bg-sunken);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-hover-fg: var(--brand-hover-fg);
+  --color-link: var(--link);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-tint: var(--tint);
+  --color-tint-wash: var(--tint-wash);
+  --color-focus: var(--focus);
+  --color-success-text: var(--success-text);
+  --color-warning-text: var(--warning-text);
+  --color-danger-text: var(--danger-text);
+
+  /* fontovi (next/font postavlja --font-archivo/--font-manrope/--font-sacramento na <html>) */
+  --font-display: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  --font-sans: var(--font-manrope), "Manrope", system-ui, sans-serif;
+  --font-script: var(--font-sacramento), "Sacramento", cursive;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+
+  /* oblik */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* senke — samo dva nivoa u sadržaju, treći za sheet/modal */
+  --shadow-card: 0 1px 2px rgba(var(--shadow-ink), 0.06), 0 8px 24px -16px rgba(var(--shadow-ink), 0.18);
+  --shadow-pop: 0 2px 4px rgba(var(--shadow-ink), 0.06), 0 16px 40px -20px rgba(var(--shadow-ink), 0.24);
+  --shadow-sheet: 0 24px 64px -24px rgba(var(--shadow-ink), 0.32);
+
+  /* motion */
+  --ease-out-expo: var(--ease-out-expo);
+  --ease-in-out-soft: var(--ease-in-out-soft);
+
+  /* mreža */
+  --breakpoint-sm: 390px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
+  --breakpoint-2xl: initial;
+  --container-content: 1200px;
+  --container-prose: 68ch;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ------------------------------------------------------------------ */
+/*  Osnova                                                              */
+/* ------------------------------------------------------------------ */
+
+html {
+  scroll-behavior: auto; /* Lenis preuzima */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition:
+    background-color var(--dur-normal) var(--ease-in-out-soft),
+    color var(--dur-normal) var(--ease-in-out-soft);
+}
+
+::selection {
+  background: var(--mint-soft);
+  color: var(--ink);
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/*
+ * Sistem 2 (components/motion/Reveal.tsx): kontejner je sakriven pre prvog paint-a
+ * samo pod `html.js`, a Reveal garantuje da ga vrati (armed → done). Isti ugovor kao
+ * hideCss() za tekst. Ne koristiti ovaj atribut ručno.
+ */
+html.js [data-reveal-motion="pending"] {
+  opacity: 0;
+}
+
+/*
+ * Ispis rukopisa u logotipu (components/brand/LogoSignature.tsx): glifovi „by Masha"
+ * su nevidljivi dok GSAP ne postavi dasharray — samo pod `html.js`, i samo dok je pending.
+ */
+html.js [data-logo-sig="pending"] [data-sig-glyph] {
+  fill-opacity: 0;
+  stroke-opacity: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tipografska skala (DNA typography.type_scale)                       */
+/* ------------------------------------------------------------------ */
+
+@utility text-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-variation-settings: "wdth" 84;
+  font-size: clamp(3rem, 9vw, 5.25rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+}
+
+@utility text-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-variation-settings: "wdth" 88;
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  line-height: 0.96;
+  letter-spacing: -0.025em;
+}
+
+@utility text-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variation-settings: "wdth" 90;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+@utility text-h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variation-settings: "wdth" 94;
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+@utility text-body {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+@utility text-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+@utility text-caption {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+@utility text-overline {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Rukopis — samo dve-tri reči, nikad rečenica */
+@utility text-script {
+  font-family: var(--font-script);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* Brojevi koji se poravnavaju: cene, sati, količine */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Sekcijski ritam: 96px mobilni, 128px desktop */
+@utility section-pad {
+  padding-block: 6rem;
+  @media (width >= 1024px) {
+    padding-block: 8rem;
+  }
+}
+
+/* Frosted sloj — SAMO lepljiva navigacija i donja akciona traka */
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Fokus prsten — jedan za ceo sajt */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reduced motion — gasi sve                                           */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

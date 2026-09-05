@@ -1,0 +1,263 @@
+{
+  "meta": {
+    "name": "Beauty by Masha",
+    "description": "Vizuelni DNK izvucen iz Instagram profila salona (@beautybymasha_belville, 3515 objava sa doslednim predloskom). Mint-zeleni krug logotipa, teski zbijeni crni wordmark, roze rukopis, beo papir, krupni plan pravih radova pri dnevnom svetlu.",
+    "source_references": [
+      "https://www.instagram.com/beautybymasha_belville/ - profilna slika (logo), mreza objava, timska fotografija, highlight naslovnice",
+      "https://qmenu.rs/menu/5 - cenovnik, ton pisanja",
+      "https://www.011info.com/kozmeticki-saloni/salon-beauty-by-masha - opis salona"
+    ],
+    "created_at": "2026-09-05",
+    "analyst_note": "Faza 2 uradjena rucno posle direktnog pregleda profila. Faza 3 (generisanje) se izvrsava u promptu 1."
+  },
+
+  "design_system": {
+    "color": {
+      "palette_type": "analogous sa jednim komplementarnim akcentom (mint + krem, roze kao kontra)",
+      "primary": { "hex": "#57BFA8", "role": "Boja logo kruga. Nosi navigaciju, primarna dugmad, aktivna stanja, ikone kategorija. Povrsina, nikad tekst." },
+      "secondary": { "hex": "#2E8E7B", "role": "Tamniji mint. Tekst-linkovi, hover, fokus prsten, tekst na krem podlozi (4.6:1)." },
+      "accent": { "hex": "#E85A9B", "role": "Roze iz rukopisa 'by Masha'. Samo akcent: loyalty znacka, bestseller oznaka, potpis rukom. Nikad kao velika povrsina." },
+      "neutral": {
+        "scale": ["#FAF6F1", "#F4EDE4", "#EDE2D6", "#D9CCBD", "#A79B8F", "#7A716A", "#5A5450", "#2B2624", "#12100F"],
+        "usage": "Od podloge sajta (#FAF6F1) do wordmark crne (#12100F). #EDE2D6 su linije i razdvajaci, #5A5450 sekundarni tekst."
+      },
+      "semantic": { "success": "#2E8E7B", "warning": "#B57A2B", "error": "#C0442F", "info": "#2E8E7B" },
+      "surface": { "background": "#FAF6F1", "card": "#FFFFFF", "elevated": "#FFFFFF" },
+      "contrast_strategy": "Tamno-na-svetlom dominantno. Boja nosi navigaciju i akcije, fotografija nosi sadrzaj. Mint je uvek povrsina a nikad tekst; kad mint mora da bude tekst, koristi se #2E8E7B."
+    },
+
+    "typography": {
+      "type_scale": {
+        "display":    { "size": "clamp(3rem, 9vw, 5.25rem)",     "weight": "800", "line_height": "0.92", "tracking": "-0.03em" },
+        "heading_1":  { "size": "clamp(2.25rem, 6vw, 3.5rem)",   "weight": "800", "line_height": "0.96", "tracking": "-0.025em" },
+        "heading_2":  { "size": "clamp(1.75rem, 4vw, 2.5rem)",   "weight": "700", "line_height": "1.05", "tracking": "-0.02em" },
+        "heading_3":  { "size": "clamp(1.25rem, 2.5vw, 1.5rem)", "weight": "700", "line_height": "1.2",  "tracking": "-0.01em" },
+        "body":       { "size": "1rem",     "weight": "400", "line_height": "1.6",  "tracking": "0" },
+        "body_small": { "size": "0.875rem", "weight": "400", "line_height": "1.55", "tracking": "0" },
+        "caption":    { "size": "0.75rem",  "weight": "500", "line_height": "1.4",  "tracking": "0.01em" },
+        "overline":   { "size": "0.6875rem","weight": "600", "line_height": "1.2",  "tracking": "0.22em" }
+      },
+      "font_families": {
+        "heading": "Archivo Variable (wdth 70-100, wght 600-800) - zbijena teska groteska, ista logika kao njen wordmark",
+        "body": "Manrope (400/500/600/700) - topla geometrijska groteska, pun latin-ext za s dj c c z",
+        "mono": "ui-monospace fallback; koristi se samo za broj clanske kartice i poziv na broj"
+      },
+      "font_style_notes": "Naslovi su ZBIJENI i TESKI, telo je prozracno i lako - taj raspon je citav njen identitet. Sacramento (rukopis) se koristi iskljucivo za dve do tri reci: 'by Masha' u logotipu i potpis ispod naslova sekcija. Nikad rukopis za recenicu. Brojevi (cene, sati, kolicine) uvek tabular-nums."
+    },
+
+    "spacing": {
+      "base_unit": "4px",
+      "scale": ["4", "8", "12", "16", "24", "32", "48", "64", "96", "128"],
+      "content_density": "spacious",
+      "section_rhythm": "Sekcije 96px na mobilnom, 128px na desktopu. Unutar sekcije naslov i sadrzaj razdvojeni sa 48px. Fotografije dobijaju vazduh - one su sadrzaj, ne dekoracija."
+    },
+
+    "layout": {
+      "grid_system": "12 kolona, CSS grid; galerija je masonry sa 2 kolone na mobilnom i 4 na desktopu",
+      "max_content_width": "1200px, tekstualni blokovi ograniceni na 68ch",
+      "columns": "12",
+      "gutter": "16px mobilni, 24px desktop",
+      "breakpoints": { "sm": "390px", "md": "768px", "lg": "1024px", "xl": "1440px" },
+      "alignment_tendency": "centrirano sa asimetricnim akcentima - njen predlozak objave je strogo centriran, pa je i sajt, ali galerija i shop namerno razbijaju ritam"
+    },
+
+    "shape": {
+      "border_radius": { "small": "8px", "medium": "16px", "large": "24px", "pill": "999px" },
+      "border_usage": "suptilna 1px linija u #EDE2D6 na karticama i inputima; bez teskih okvira",
+      "divider_style": "1px #EDE2D6 puna linija, ili prazan prostor - nikad isprekidano"
+    },
+
+    "elevation": {
+      "shadow_style": "soft diffused, samo dva nivoa",
+      "levels": {
+        "low": "0 1px 2px rgba(18,16,15,.06), 0 8px 24px -16px rgba(18,16,15,.18)",
+        "medium": "0 2px 4px rgba(18,16,15,.06), 0 16px 40px -20px rgba(18,16,15,.24)",
+        "high": "0 24px 64px -24px rgba(18,16,15,.32)"
+      },
+      "depth_cues": "senke i preklapanje slojeva; bez blur/glass efekata osim na lepljivoj navigaciji"
+    },
+
+    "iconography": {
+      "style": "linijske, zaobljeni krajevi",
+      "stroke_weight": "1.5px",
+      "size_scale": ["16", "20", "24", "32"],
+      "preferred_set": "lucide-react"
+    },
+
+    "motion": {
+      "easing": "cubic-bezier(0.16, 1, 0.3, 1) za ulaze; cubic-bezier(0.65, 0, 0.35, 1) za dvosmerne prelaze",
+      "duration_scale": { "micro": "150ms", "normal": "300ms", "macro": "600ms" },
+      "entrance_pattern": "gradualno, po elementima, odozdo - nikad ceo blok odjednom. Tekst rec po rec (site-wide sistem), ostalo stagger 60-80ms po redosledu citanja.",
+      "exit_pattern": "brzo i tiho - 150ms opacity, bez pomeranja",
+      "philosophy": "Pokret sluzi da oko zna gde da gleda sledece. Nista se ne pomera bez razloga. prefers-reduced-motion gasi sve, sadrzaj ostaje potpun."
+    },
+
+    "components": {
+      "button_style": "pill; primarno puni mint sa krem tekstom, sekundarno 1px obrub u #EDE2D6, destruktivno obrub u boji greske. Visina 44px minimum.",
+      "input_style": "44px visine, radijus 8px, 1px #EDE2D6, fokus prsten 2px #2E8E7B sa offsetom 2px",
+      "card_style": "beo, radijus 16px, senka low, 1px linija; slika unutra dobija radijus 8px",
+      "navigation_pattern": "lepljiva gornja traka na desktopu koja se skuplja pri skrolu; na mobilnom gornja traka + donja akciona traka sa 'Zakazi'",
+      "modal_style": "na mobilnom bottom sheet sa hvataljkom i drag-to-dismiss; na desktopu centrirani modal",
+      "list_style": "podeljene liste sa 1px linijom, bez zebra pruga",
+      "component_notes": "Motiv kruga iz logotipa se ponavlja: ikone kategorija, koraci u zakazivanju, swatch boje u shopu, avatari - sve krugovi. To vezuje sajt za logo bez ijedne dodatne slike."
+    }
+  },
+
+  "design_style": {
+    "aesthetic": {
+      "mood": ["cisto", "sveze", "profesionalno", "toplo", "smireno"],
+      "visual_metaphor": "salon pri dnevnom svetlu - beo papir, mint zid, jedan par ruku u kadru",
+      "era_influence": "savremeni skandinavski minimalizam sa toplinom mediteranske palete; nista retro",
+      "genre": "local service brand, editorial-clean",
+      "personality_traits": ["temeljna", "pristupacna", "pedantna", "bez pretvaranja"],
+      "adjectives": ["cisto", "prozracno", "precizno", "zensko bez kiča", "poverljivo"]
+    },
+    "visual_language": {
+      "complexity": "minimal",
+      "ornamentation": "subtle accents - jedini ukras je roze rukopis i krug",
+      "whitespace_usage": "velikodusan; prazan prostor je deo dizajna, ne propust",
+      "visual_weight_distribution": "tezina je u fotografijama i u naslovima; sve ostalo je lako",
+      "focal_strategy": "progressive reveal - jedna stvar u fokusu po ekranu, sledeca stize skrolom",
+      "contrast_level": "visok na tipografiji, nizak na povrsinama",
+      "texture_usage": "gotovo nikakva - jedini 'materijal' je sjaj laka u hero shaderu i gloss hover u shopu"
+    },
+    "composition": {
+      "hierarchy_method": "scale contrast + spatial isolation",
+      "balance_type": "symmetric sa namernim asimetricnim prekidima u galeriji i shopu",
+      "flow_direction": "vertikalno, jedna kolona na mobilnom; horizontalne trake samo za galeriju i istaknute lakove",
+      "grouping_strategy": "po zadatku korisnika (hocu termin / hocu proizvod / gde ste), ne po tipu sadrzaja",
+      "negative_space_role": "razdvaja teme i daje fotografijama da disu"
+    },
+    "imagery": {
+      "photo_treatment": "bez filtera, dnevno svetlo, prirodni tonovi. Nikad crno-belo, nikad teski gradijent preko slike. Njene fotografije se ne 'popravljaju'.",
+      "illustration_style": "nema ilustracija",
+      "graphic_elements": "krug, tanka linija, roze rukopisni potpis",
+      "pattern_usage": "nema sara",
+      "image_shape": "krug za ikone i avatare; zaobljeni pravougaonik 8px za radove; puna sirina za hero"
+    },
+    "interaction_feel": {
+      "feedback_style": "trenutan i tih - stanje se menja odmah, potvrda je mala i nestaje",
+      "hover_behavior": "podizanje za 1px + pojacanje senke; u shopu dodatno gloss prelaz preko swatch-a",
+      "transition_personality": "smooth glide",
+      "loading_style": "skeleton u tonu podloge, nikad spiner preko celog ekrana",
+      "microinteraction_density": "moderate - dovoljno da se oseti kvalitet, premalo da smeta"
+    },
+    "brand_voice_in_ui": {
+      "tone": "strucan i topao, kao kad ti kozmeticarka objasni sta radi i zasto",
+      "formality": "persiranje, ali bez ukocenosti",
+      "cta_style": "direct imperative - 'Zakazite termin', 'Pogledajte cenovnik'",
+      "empty_state_approach": "objasni sta ide u prazan prostor i ponudi jednu radnju",
+      "error_tone": "kaze sta se desilo i sta sad - 'Termin je upravo zauzet. Izaberite drugi.'"
+    }
+  },
+
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "subtle-accent na celom sajtu, moderate u hero sekciji",
+      "performance_tier": "medium; heavy samo u hero-u na desktopu",
+      "fallback_strategy": "Mobilni i prefers-reduced-motion nikad ne pokrecu WebGL - hero postaje staticni CSS radial-gradient u istim bojama. Sve scroll animacije postaju trenutna vidljivost.",
+      "primary_technology": "GSAP + ScrollTrigger; WebGL/Three.js samo za hero"
+    },
+    "background_effects": {
+      "type": "mesh-gradient",
+      "description": "Hero: gust sjajan fluid koji se lenjo preliva, kao lak koji se sliva. Ostale sekcije: staticni suptilni radial-gradient u mint-wash tonu, bez animacije.",
+      "technology": "WebGL fragment shader (hero), CSS gradient (ostalo)",
+      "params": {
+        "color_palette": ["#57BFA8", "#C9E9E1", "#FBDCE9", "#FAF6F1"],
+        "speed": "vrlo sporo - pun ciklus oko 24s",
+        "density": "3 sloja domenski iskrivljenog fBm suma",
+        "opacity": "1.0 kao podloga, tekst iznad dobija citljivu povrsinu",
+        "blend_mode": "normal"
+      }
+    },
+    "particle_systems": {
+      "enabled": false,
+      "type": "none", "description": "Cestice bi izgledale jeftino uz njen cist brend.", "technology": "none",
+      "params": { "count": "0", "shape": "none", "size_range": "none", "movement_pattern": "none", "color_behavior": "none", "interaction": "none", "spawn_area": "none" }
+    },
+    "3d_elements": {
+      "enabled": true,
+      "type": "scene-bg",
+      "description": "Jedan full-screen plane u ortografskoj kameri koji nosi fragment shader. Bez modela, bez ucitavanja, bez GLB-a - zato radi odmah i ne kosta nista u mrezi.",
+      "technology": "React Three Fiber + Three.js",
+      "params": {
+        "renderer": "WebGLRenderer, dpr [1, 1.75], antialias false (shader ne pravi ivice), frameloop 'demand' van viewporta",
+        "lighting": "nema - sve je u fragment shaderu",
+        "camera": "OrthographicCamera, plane popunjava kadar",
+        "materials": "ShaderMaterial sa uniformima uTime, uPointer, uScroll, uPalette[4], uReduced",
+        "geometry": "PlaneGeometry(2, 2)",
+        "post_processing": [],
+        "interaction_model": "pointer gura polje sa inercijom (lerp 0.06); scroll pomera dubinu; pauza na visibilitychange i van viewporta"
+      }
+    },
+    "shader_effects": {
+      "enabled": true,
+      "type": "noise-distortion",
+      "description": "Tri sloja fBm suma sa domenskim iskrivljenjem daju povrsinu tecnosti; jedan specular highlight lenjo klizi preko nje i cita se kao mokar lak.",
+      "technology": "GLSL fragment shader",
+      "params": {
+        "uniforms": ["uTime", "uPointer", "uScroll", "uPalette", "uReduced", "uResolution"],
+        "vertex_manipulation": "nema - sve u fragmentu",
+        "fragment_output": "mesanje 4 boje palete po vrednosti suma + specular sloj po fresnel-nalik krivoj",
+        "noise_type": "fbm (simplex, 4 oktave)",
+        "distortion": "domain warping u dva prolaza; amplituda pada na 0 kad je uReduced = 1"
+      }
+    },
+    "scroll_effects": {
+      "parallax": { "enabled": true, "layers": "2", "depth_range": "0-12% pomeraja", "speed_curve": "linearno, scrub 1" },
+      "scroll_triggered_animations": {
+        "enabled": true,
+        "trigger_points": "start 'top 85%' za ulaze; hero pin na 'top top' sa krajem '+=100%'",
+        "animation_type": "fade-up za kartice i medije, clip-reveal za fotografije, counter za brojeve, rec-po-rec za tekst (zaseban sistem)",
+        "scrub_behavior": "scrub 1 samo za hero i parallax; ulazi sekcija se NE scrub-uju - oni se odigraju jednom i ostaju"
+      },
+      "scroll_morphing": { "enabled": true, "description": "Hero se pri skrolu skuplja u kruznu masku koja postaje ikona prve kategorije - krug iz logotipa preuzima ekran i predaje ga sekciji Usluge." }
+    },
+    "text_effects": {
+      "type": "split-word-animate",
+      "description": "Site-wide sistem: svaki naslov, pasus, stavka liste i samostalna oznaka stize rec po rec, nasumicnim redosledom, iz blura i odozdo, kad predje 15% u vidno polje. Portuje se iz _ref/colorcutchris.",
+      "technology": "IntersectionObserver + CSS transitions (bez GSAP-a, da se ne bije sa ScrollTrigger-om)",
+      "params": {
+        "split_strategy": "by-word",
+        "animation_per_unit": "opacity 0->1, translateY 0.5em->0, blur 6px->0",
+        "stagger": "nasumican redosled, ukupno trajanje 600ms po elementu, maksimalno 60 reci pa se blok gasi kao celina",
+        "effect_style": "blurred lift, random order"
+      }
+    },
+    "cursor_effects": {
+      "enabled": true,
+      "type": "magnetic-buttons",
+      "description": "Primarna dugmad i swatch-evi u shopu blago prate kursor unutar 24px. Bez prilagodjenog kursora i bez traga - to bi bilo protiv njenog mirnog brenda.",
+      "params": { "shape": "none", "size": "none", "blend_mode": "normal", "trail": "none", "interaction_zone": "24px oko elementa, gasi se na touch uredjajima" }
+    },
+    "image_effects": {
+      "type": "reveal-clip",
+      "description": "Fotografije radova ulaze clip-path otkrivanjem odozdo uz blagi scale 1.06 -> 1.0. U shopu: hover pusta gloss sweep preko swatch kruga i crossfade-uje sliku proizvoda preko boje.",
+      "technology": "GSAP + CSS clip-path i mask",
+      "params": {
+        "filter_pipeline": "nema filtera - njene fotografije se ne diraju",
+        "hover_transform": "scale 1.02, senka low -> medium, 300ms",
+        "reveal_animation": "clip-path inset(100% 0 0 0) -> inset(0), 700ms, stagger 80ms po mrezi",
+        "distortion_type": "none"
+      }
+    },
+    "glassmorphism_neumorphism": {
+      "enabled": true,
+      "style": "frosted-layers",
+      "params": { "blur_radius": "12px", "transparency": "0.72", "border_treatment": "1px rgba(18,16,15,.06)", "shadow_type": "low", "light_source_angle": "top" },
+      "note": "SAMO na lepljivoj navigaciji i na donjoj akcionoj traci na mobilnom. Nigde vise - glass preko cele stranice bi ubio cistocu."
+    },
+    "canvas_drawings": {
+      "enabled": false,
+      "type": "none", "description": "nema", "technology": "none",
+      "params": { "draw_method": "none", "animation_loop": "none", "color_scheme": "none", "responsiveness": "none", "interaction": "none" }
+    },
+    "svg_animations": {
+      "enabled": true,
+      "type": "logo-reveal",
+      "description": "Rukopisni deo logotipa ('by Masha') se ispisuje stroke-dashoffset animacijom pri prvom ucitavanju i u hero-u. Jednom po sesiji, 900ms, pa nikad vise.",
+      "params": { "animation_method": "CSS stroke-dashoffset + GSAP", "path_morphing": "none", "stroke_animation": "draw-on, 900ms, ease-out", "filter_effects": "none" }
+    },
+    "composite_notes": "Slojevi se ne preklapaju: hero shader je jedini tezak efekat i zivi samo u prvom ekranu na desktopu. Ispod njega sve nosi GSAP ScrollTrigger sa jeftinim transform/opacity animacijama. Tekst ima svoj, potpuno odvojen sistem (IntersectionObserver) - njih dva se NIKADA ne primenjuju na isti element. Pravilo: ako element sadrzi tekst, GSAP animira KONTEJNER (transform), a text-reveal animira reci unutra. Prekrsi to i dva sistema se bore oko istog opacity-ja. prefers-reduced-motion gasi shader, parallax, magnetic i clip-reveal; text-reveal tada prikazuje ceo tekst odmah."
+  }
+}

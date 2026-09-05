@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Referentni kod - citanka, ne deo build-a
+/_ref/
+
+# Sirove slike pre AVIF konverzije
+/public/photos/raw/
+
+# Fontovi za generisanje logo putanja (OFL, skida ih scripts/build-logo-paths.mjs)
+/scripts/.fonts/
+
+# Playwright MCP artefakti (screenshot/konzola)
+/.playwright-mcp/
