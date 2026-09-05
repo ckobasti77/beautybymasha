@@ -8,6 +8,7 @@ import { PriceList } from "@/components/sections/PriceList";
 import { ReviewsSection } from "@/components/sections/ReviewsSection";
 import { ServicesCircles } from "@/components/sections/ServicesCircles";
 import { ShopHighlights } from "@/components/sections/ShopHighlights";
+import { TeamSection } from "@/components/sections/TeamSection";
 import { JsonLd } from "@/components/site/JsonLd";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteNav } from "@/components/site/SiteNav";
@@ -29,8 +30,8 @@ export const metadata: Metadata = {
 
 /**
  * Landing. Redosled sekcija je iz docs/BRAND.md §7 i ne menja se bez izmene tog fajla:
- * Nav · Hero · Loyalty · Usluge · Zakazivanje · Radovi · ORLY · Cenovnik · Lokacije ·
- * Recenzije · Kontakt.
+ * Nav · Hero · Loyalty · Usluge · Zakazivanje · Radovi · Naš tim · ORLY · Cenovnik ·
+ * Lokacije · Recenzije · Kontakt.
  *
  * Struktuirani podaci stoje ovde, a ne u `app/layout.tsx`, jer su vezani za jednu
  * stranicu: na naslovnoj je ceo NAP oba lokala, pa je to stranica koju Google
@@ -54,6 +55,7 @@ export default function Home() {
         <ServicesCircles />
         <BookingSection />
         <Gallery />
+        <TeamSection />
         <ShopHighlights />
         <PriceList />
         <LocationsSection />

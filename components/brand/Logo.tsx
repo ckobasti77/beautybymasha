@@ -36,20 +36,24 @@ const TOKEN_COLORS: LogoColors = {
 /* Lockup geometrija u jedinicama BEAUTY (1000 upm, cap 686). Podešeno vizuelno. */
 /*
  * Izmereno iz putanja: Sacramento ascenderi (b, M, h) idu 712–748 upm iznad osnovne
- * linije, x-visina tela (a, s) 238–304, „y" silazi 461. Telo potpisa sedi odmah ispod
- * donje ivice slova, ascenderi blago seku slova; rotacija -6° oko sredine reči diže
- * „Masha" udesno preko ivice.
+ * linije, x-visina tela (a, s) 238–304, „y" silazi 461.
+ *
+ * Korak 10: rukopis je bio centriran i prevelik (scale 1.15) pa je prekrivao celo
+ * „BEAUTY" i seckao se o viewBox. Sada je LEVO poravnat sa BEAUTY, ~38% njegove širine,
+ * i sedi ISPOD reči — gornje petlje tek dodiruju donju ivicu slova.
  */
-const SIG_BODY_TOP = 238; // vrh slova „a" iznad osnovne linije (upm)
+const SIG_SCALE = 0.37; // rukopis ≈ 38% širine BEAUTY
+const SIG_ASCENDER = 748; // najviši ascender (M/h) u upm
 const LOCKUP = {
-  beautyBaseline: BEAUTY.capHeight, // vrh slova na y = 0
-  sigScale: 1.15,
-  sigRotate: -6,
-  sigCenterX: BEAUTY.width / 2 + 40,
-  /** Telo rukopisa počinje 20 upm ispod donje ivice slova. */
-  sigBaseline: BEAUTY.capHeight + 20 + SIG_BODY_TOP * 1.15,
-  /** viewBox lockup-a (wordmark) — potpis je širi od BEAUTY na obe strane. */
-  box: { x: -300, y: -60, w: BEAUTY.width + 600, h: 1760 },
+  beautyBaseline: BEAUTY.capHeight, // vrh slova na y = 0, osnovna linija na y = 686
+  sigScale: SIG_SCALE,
+  sigRotate: -4,
+  /** Leva ivica rukopisa poravnata sa BEAUTY (x≈0), mali inset ulevo. */
+  sigLeftX: -10,
+  /** Vrh ascendera (~748upm) pada ~5upm ispod osnovne linije slova → petlje ih tek dodirnu. */
+  sigBaseline: BEAUTY.capHeight + 5 + SIG_ASCENDER * SIG_SCALE,
+  /** viewBox lockup-a (wordmark): BEAUTY nosi širinu, rukopis stane levo dole. */
+  box: { x: -40, y: -40, w: BEAUTY.width + 80, h: 1220 },
 } as const;
 
 /** Mark: lockup skaliran u krug 1000×1000 (BEAUTY ≈ 70% prečnika, vizuelno centrirano). */
@@ -58,7 +62,7 @@ const MARK = { scale: 0.2, x: 152, y: 368, box: 1000 } as const;
 const SIG_STROKE = 14;
 
 function LockupArt({ colors, animate }: { colors: LogoColors; animate?: boolean }) {
-  const sigTransform = `translate(${LOCKUP.sigCenterX} ${LOCKUP.sigBaseline}) rotate(${LOCKUP.sigRotate}) scale(${LOCKUP.sigScale}) translate(${-BY_MASHA.width / 2} 0)`;
+  const sigTransform = `translate(${LOCKUP.sigLeftX} ${LOCKUP.sigBaseline}) rotate(${LOCKUP.sigRotate}) scale(${LOCKUP.sigScale})`;
   return (
     <>
       <g transform={`translate(0 ${LOCKUP.beautyBaseline})`} fill={colors.ink} data-logo-beauty>

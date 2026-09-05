@@ -54,11 +54,11 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
     lenisRef.current = instance;
 
     /*
-     * Ulazi sekcija (components/motion/Reveal.tsx) mere `start`/`end` pre nego što
-     * hero pin ubaci `.pin-spacer` i pre nego što slike / Convex podaci slegnu visinu.
-     * Bez ovog refresh-a triger sekcija ISPOD pina dobije pogrešnu poziciju i nikad ne
-     * okine → kontejner ostane `opacity:0`. Refresh na `load` preračuna sve pozicije
-     * sa pin-spacer-om; `onRefresh` re-check u Reveal-u tada pusti sve iznad skrola.
+     * Ulazi sekcija (components/motion/Reveal.tsx) mere `start`/`end` pre nego što slike /
+     * Convex podaci slegnu visinu strane. Refresh na `load` preračuna sve pozicije kad je
+     * layout konačan; `onRefresh` re-check u Reveal-u tada pusti sve što je već u kadru.
+     * (Korak 10: hero pin je uklonjen, pa nema više `.pin-spacer` — ovaj refresh sada samo
+     * poravna pozicije posle slika i bezopasan je jer ne postoji pin koji bi pomerio.)
      */
     const refresh = () => ScrollTrigger.refresh();
     if (document.readyState === "complete") refresh();

@@ -14,9 +14,9 @@ import { site } from "@/lib/site";
  * iz kadra (docs/MOTION.md → Hero, tačka 4) — dok je hero na ekranu, nav lebdi nad
  * shaderom bez pozadine.
  *
- * `#nav-logo-slot` je odredište GSAP Flip-a iz `components/hero/Hero.tsx`: na desktopu
- * hero wordmark sleti ovde i tek tada se logo pojavi. Bez JS-a (ili na mobilnom) logo
- * je vidljiv od početka, pa navigacija nikad nije prazna.
+ * `#nav-logo-slot` drži logo koji se pojavi običnim opacity prelazom kad hero izađe iz
+ * kadra (isti `solid` signal kao frosted podloga). Korak 10 je uklonio GSAP Flip; dok je
+ * hero na ekranu njegov veliki wordmark nosi brend, pa nav logo tada stoji sakriven.
  *
  * `<nav>` je u `skipSelector`-u text-reveal sistema — chrome mora da bude čitljiv
  * istog trenutka kad se pojavi.
@@ -103,9 +103,17 @@ export function SiteNav({ alwaysSolid = false }: { alwaysSolid?: boolean } = {})
           href="/#hero"
           id="nav-logo-slot"
           aria-label={`${site.name} — na vrh strane`}
-          className="inline-flex shrink-0 items-center rounded-pill focus-ring"
+          className={[
+            "inline-flex shrink-0 items-center rounded-pill focus-ring transition-opacity duration-300",
+            // Bez Flip-a (korak 10): logo se pojavi opacity prelazom kad hero izađe iz
+            // kadra. Na stranama bez heroja (alwaysSolid) je vidljiv od početka.
+            solid ? "opacity-100" : "opacity-0",
+          ].join(" ")}
         >
-          <Logo variant="mark" size={36} decorative />
+          {/* <400 px: mali krug (wordmark ne bi bio čitljiv). Inače horizontalni wordmark
+              visine ~30 px. Visina nav trake se NE menja (h-16/h-20). */}
+          <Logo variant="mark" size={44} decorative className="min-[400px]:hidden" />
+          <Logo variant="wordmark" size={88} decorative className="hidden text-fg min-[400px]:block" />
         </Link>
 
         <ul className="ml-4 hidden items-center gap-1 lg:flex">

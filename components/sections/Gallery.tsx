@@ -12,16 +12,16 @@ import { photoById, photosByUse, type Photo } from "@/lib/photos";
 /**
  * „Radovi" — masonry njenih fotografija sa lightbox-om.
  *
- * Varijanta je `photo` (čista fotografija bez wordmarka), OSIM za tri snimka čiji
- * `note` u `data/photos.json` izričito traži `card`: bbm-09 je pre/posle kartica,
- * bbm-10 je timska fotografija kojoj je rez odsekao deo tima, bbm-24 je zid lakova
- * sa natpisom. Njima je `photo` rez loš i mora da ostane njena original objava.
+ * Varijanta je `photo` (čista fotografija bez wordmarka), OSIM za bbm-09 (pre/posle
+ * kartica) čiji `note` u `data/photos.json` izričito traži `card` rez.
+ * Korak 10: bbm-10 (timska) je premeštena u sekciju „Naš tim", a bbm-24 (zid lakova
+ * sa promo natpisom) je izbačen iz galerije — ostaje samo kao baner u shop sekciji.
  *
  * `alt` tekstovi su već napisani u `data/photos.json` i koriste se doslovno.
  */
 
-/** Vidi `note` u data/photos.json — ovim trima `photo` rez ne valja. */
-const CARD_VARIANT = new Set(["bbm-09", "bbm-10", "bbm-24"]);
+/** Vidi `note` u data/photos.json — bbm-09 je pre/posle kartica kojoj `photo` rez ne valja. */
+const CARD_VARIANT = new Set(["bbm-09"]);
 
 function galleryPhotos(): Photo[] {
   const out = [...photosByUse("galerija")];

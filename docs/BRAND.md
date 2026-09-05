@@ -122,11 +122,12 @@ Sve na srpskom, latinica (`sr-Latn`), `lang="sr-Latn-RS"`.
 4. **Usluge** — 5 krugova (Nokti · Depilacija · Masaža · Trepavice i obrve · Nega lica), svaki vodi na cenovnik sa filterom
 5. **Zakazivanje** — čarobnjak ugrađen u stranicu (ne zaseban ekran)
 6. **Radovi** — masonry galerija njenih fotografija, lightbox
-7. **ORLY / Shop** — 8 istaknutih lakova sa swatch-evima → `Ceo katalog`
-8. **Cenovnik** — pretraga + akordeon po grupama, sve 145 stavki, cena i trajanje
-9. **Lokacije** — dve kartice rame uz rame, radno vreme svake, mapa, `Navigacija` i `Pozovi`
-10. **Recenzije** — 011info ocene **[POTVRDITI da smemo da citiramo]**
-11. **Kontakt / Footer** — telefon, email, IG, FB, radno vreme, pravni linkovi
+7. **Naš tim** — jedna timska fotografija (bbm-10) + kratak opis; imena/broj **[POTVRDITI]**
+8. **ORLY / Shop** — 8 istaknutih lakova sa swatch-evima → `Ceo katalog`
+9. **Cenovnik** — pretraga + akordeon po grupama, sve 145 stavki, cena i trajanje
+10. **Lokacije** — dve kartice rame uz rame, radno vreme svake, mapa, `Navigacija` i `Pozovi`
+11. **Recenzije** — 011info ocene **[POTVRDITI da smemo da citiramo]**
+12. **Kontakt / Footer** — telefon, email, IG, FB, radno vreme, pravni linkovi
 
 ### `/shop` i `/shop/[slug]`
 Zid swatch-eva. Filteri: kategorija · porodica boja · finiš (crème/shimmer/glitter/holo) · cena.

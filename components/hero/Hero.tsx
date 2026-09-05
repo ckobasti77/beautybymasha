@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { LogoSignature } from "@/components/brand/LogoSignature";
 import { Button } from "@/components/ui/Button";
-import { EASE_ENTER, Flip, ScrollTrigger, gsap, useGSAP } from "@/lib/gsap";
+import { EASE_ENTER, gsap, useGSAP } from "@/lib/gsap";
 import { revealWords } from "@/lib/textReveal";
 import { useCanvasActive, useWebGLAllowed } from "@/lib/webgl";
 import { HeroFallback } from "./HeroFallback";
@@ -24,8 +24,6 @@ import type { HeroDrivers } from "./LiquidCanvas";
  */
 
 const LiquidCanvas = dynamic(() => import("./LiquidCanvas"), { ssr: false });
-
-type FitVars = { x: number; y: number; scaleX: number; scaleY: number };
 
 export function Hero() {
   const rootRef = useRef<HTMLElement>(null);
@@ -105,90 +103,43 @@ export function Hero() {
     { scope: rootRef },
   );
 
-  /* ---- scroll scenario: pin, Flip wordmark → nav, skupljanje u krug ---- */
+  /* ---- scroll: blagi parallax na shaderu (bez pina, bez Flip-a) ----
+   *
+   * Korak 10: pin i Flip su uklonjeni. Pin je ubacivao `.pin-spacer` koji je pomerao
+   * sve sekcije ispod heroja → njihovi ScrollTrigger-i su računali pogrešnu poziciju i
+   * copy je ostajao nevidljiv. Hero je sada obična sekcija 100svh kroz koju skrol teče
+   * normalno; jedini scroll efekat je blagi parallax na shaderu. Logo u navigaciji
+   * dobija običan opacity prelaz iz `components/site/SiteNav.tsx` (useHeroPassed).
+   */
   useGSAP(
     () => {
       const root = rootRef.current;
       const visual = visualRef.current;
-      const wordmark = wordmarkRef.current;
-      const copy = copyRef.current;
-      if (!root || !visual || !wordmark || !copy) return;
+      if (!root || !visual) return;
 
       const mm = gsap.matchMedia();
       mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-        const navLogo = document.getElementById("nav-logo-slot");
-
-        // Flip meri jednom po `refresh`-u: dve merne tačke (wordmark u heroju i mesto
-        // u navigaciji) su u istom, nepomerenom rasporedu samo pre nego što scrub
-        // primeni transformaciju. `onRefreshInit` briše i merenje i zatečeni transform.
-        let fit: FitVars | null = null;
-        const measure = (): FitVars => {
-          if (!fit && navLogo) {
-            fit = Flip.fit(wordmark, navLogo, { getVars: true, scale: true }) as FitVars | null;
-          }
-          return fit ?? { x: 0, y: 0, scaleX: 1, scaleY: 1 };
-        };
-
-        const tl = gsap.timeline({ defaults: { ease: "none" } });
-
-        // 5–34%: copy se povlači, wordmark leti u navigaciju i predaje se logu. Flip je
-        // gotov do ~35% pina — klijent je dug pin (110%) zvao „scrolling tango".
-        tl.to(copy, { opacity: 0, y: -48, duration: 0.22 }, 0.05);
-        if (navLogo) {
-          tl.to(
-            wordmark,
-            {
-              x: () => measure().x,
-              y: () => measure().y,
-              scale: () => measure().scaleX,
-              duration: 0.28,
-            },
-            0.05,
-          );
-          tl.to(wordmark, { opacity: 0, duration: 0.05 }, 0.29);
-          tl.fromTo(navLogo, { opacity: 0 }, { opacity: 1, duration: 0.07 }, 0.27);
-        }
-
-        // 35–100%: NIŠTA ne odlazi iz kadra. Shader ostaje pun ekran uz blagi scale i svoj
-        // `uScroll` parallax (hrani ga onUpdate), pa tokom celog (kratkog) pina uvek ima
-        // nečeg živog. Ranije se ovde skupljao u sićušan krug i gasio → tri ekrana prazne kreme.
-        tl.fromTo(visual, { scale: 1.0 }, { scale: 1.06, duration: 0.65 }, 0.35);
-
-        const trigger = ScrollTrigger.create({
-          trigger: root,
-          start: "top top",
-          end: "+=60%",
-          pin: true,
-          pinSpacing: true,
-          scrub: 1,
-          animation: tl,
-          invalidateOnRefresh: true,
-          onRefreshInit: () => {
-            fit = null;
-            gsap.set(wordmark, { clearProps: "transform" });
+        // Sloj je uvećan (scale) da ±6% pomeraj nikad ne otkrije papir-ivicu — 12%
+        // ukupnog hoda, centriran. Bez pina: nema `.pin-spacer`, skrol je neprekinut.
+        gsap.set(visual, { scale: 1.2, transformOrigin: "50% 50%" });
+        const parallax = gsap.fromTo(
+          visual,
+          { yPercent: -6 },
+          {
+            yPercent: 6,
+            ease: "none",
+            scrollTrigger: { trigger: root, start: "top top", end: "bottom top", scrub: 1 },
           },
-          onUpdate: (self) => {
-            drivers.scroll.current = self.progress;
-            /*
-             * Povučeni copy se sklanja iz rasporeda, ne samo iz vidljivosti. `visibility`
-             * ne prazni `offsetParent`, pa bi provera iz docs/MOTION.md prijavila hero
-             * naslov kao „sakriven copy koji niko nije vratio". Vodi ga `progress`, ne
-             * callback timeline-a, da stanje bude tačno i posle refresh-a i posle
-             * učitavanja strane na sredini skrola.
-             */
-            copy.style.display = self.progress >= 0.29 ? "none" : "";
-          },
-        });
+        );
 
         return () => {
-          trigger.kill();
-          copy.style.display = "";
-          gsap.set([copy, wordmark, visual], { clearProps: "opacity,transform,clipPath" });
-          drivers.scroll.current = 0;
+          parallax.scrollTrigger?.kill();
+          parallax.kill();
+          gsap.set(visual, { clearProps: "transform" });
         };
       });
     },
-    { scope: rootRef, dependencies: [drivers] },
+    { scope: rootRef },
   );
 
   return (

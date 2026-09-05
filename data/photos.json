@@ -460,11 +460,8 @@
       "proizvodi",
       "ljudi"
     ],
-    "use": [
-      "shop-hero",
-      "o-nama"
-    ],
-    "note": "VAZNO: koristiti -card varijantu. Na originalu pise: ORLY I ENTITY, CUVENI LAKOVI BEZ STETNIH SASTOJAKA, SAJAMSKI POPUST OD 10 DO 50%"
+    "use": [],
+    "note": "VAZNO: koristiti -card varijantu. Na originalu pise: ORLY I ENTITY, CUVENI LAKOVI BEZ STETNIH SASTOJAKA, SAJAMSKI POPUST OD 10 DO 50%. Korak 10: izbacen iz galerije (reklama sa tekstom preko slike); ostaje samo kao baner u shop sekciji - ShopHighlights ga uzima preko photoById, ne preko use."
   },
   "_meta": {
     "source": "Instagram @beautybymasha_belville, preuzeto 2026-09-05",
