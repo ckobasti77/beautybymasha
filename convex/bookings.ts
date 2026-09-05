@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import schema, { locationKeyValidator, resourceKeyValidator, statusValidator } from "./schema";
-import { assertAdmin, assertSignedIn, currentUser } from "./lib/admin";
+import { assertSignedIn, assertStaff, currentUser } from "./lib/admin";
 import {
   MAX_BOOKINGS_PER_DAY,
   getLocation,
@@ -214,7 +214,7 @@ export const list = query({
   },
   returns: v.array(bookingDoc),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const rows = await ctx.db
       .query("bookings")
       .withIndex("by_date", (q) => q.gte("date", args.from).lte("date", args.to))
@@ -231,7 +231,7 @@ export const pending = query({
   args: { key: v.string() },
   returns: v.array(bookingDoc),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const rows = await ctx.db
       .query("bookings")
       .withIndex("by_status", (q) => q.eq("status", "nov"))
@@ -244,7 +244,7 @@ export const pendingCount = query({
   args: { key: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const rows = await ctx.db
       .query("bookings")
       .withIndex("by_status", (q) => q.eq("status", "nov"))
@@ -281,7 +281,7 @@ export const confirm = mutation({
   args: { key: v.string(), id: v.id("bookings") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     return await setStatus(ctx, args.id, "potvrdjen");
   },
 });
@@ -290,7 +290,7 @@ export const reject = mutation({
   args: { key: v.string(), id: v.id("bookings") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     return await setStatus(ctx, args.id, "odbijen");
   },
 });
@@ -299,7 +299,7 @@ export const cancel = mutation({
   args: { key: v.string(), id: v.id("bookings") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     return await setStatus(ctx, args.id, "otkazan");
   },
 });
@@ -320,7 +320,7 @@ export const createManual = mutation({
   },
   returns: v.id("bookings"),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const name = validateName(args.name);
     const phoneRaw = args.phone?.trim() ?? "";
     const phone = phoneRaw ? validatePhone(phoneRaw) : "";
@@ -384,7 +384,7 @@ export const move = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const doc = await ctx.db.get("bookings", args.id);
     if (!doc) throw new ConvexError(MESSAGES.notFound);
     // Otkazan ili odbijen termin se ne pomera — on vise ne drzi mesto.

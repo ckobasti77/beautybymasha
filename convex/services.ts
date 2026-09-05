@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import schema, { resourceKeyValidator, serviceGroupKeyValidator } from "./schema";
-import { assertAdmin } from "./lib/admin";
+import { assertAdmin, assertStaff } from "./lib/admin";
 import { MAX_SERVICES, getService, resourceOfGroup } from "./lib/availability";
 import { MESSAGES } from "./lib/validate";
 
@@ -57,7 +57,7 @@ export const listAll = query({
   args: { key: v.string() },
   returns: v.array(schema.doc("services")),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     const rows = await ctx.db.query("services").take(MAX_SERVICES);
     return rows.sort((a, b) => a.order - b.order);
   },

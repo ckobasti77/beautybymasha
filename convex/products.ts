@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import schema, {
   brandValidator,
   colorFamilyValidator,
@@ -398,5 +398,118 @@ export const imageUrls = query({
     const urls = await Promise.all(product.storageImageIds.map((id) => ctx.storage.getUrl(id)));
     const uploaded = urls.filter((u): u is string => u !== null);
     return uploaded.length > 0 ? uploaded : product.imagePath ? [product.imagePath] : [];
+  },
+});
+
+/* =====================================================================
+ * Admin — brze radnje nad više odabranih proizvoda
+ * ===================================================================== */
+
+const bulkActionValidator = v.union(
+  /** Promeni cenu za procenat: +10 poskupi, −10 pojeftini. Cena nikad ne padne ispod 1 RSD. */
+  v.object({ kind: v.literal("cenaProcenat"), percent: v.number() }),
+  v.object({ kind: v.literal("popust"), discountPercent: v.number() }),
+  v.object({ kind: v.literal("vidljivost"), active: v.boolean() }),
+  v.object({ kind: v.literal("stanje"), stock: v.number() }),
+);
+
+/**
+ * Jedna izmena nad više odabranih proizvoda odjednom.
+ *
+ * Red koji ne prođe validaciju ne ruši ostale — vraća se broj promenjenih,
+ * pa panel kaže „12 proizvoda promenjeno" umesto da ćuti.
+ */
+export const bulkAction = mutation({
+  args: {
+    key: v.optional(v.string()),
+    ids: v.array(v.id("products")),
+    action: bulkActionValidator,
+  },
+  returns: v.object({ changed: v.number(), skipped: v.number() }),
+  handler: async (ctx, args) => {
+    await assertAdmin(ctx, args.key);
+    let changed = 0;
+    let skipped = 0;
+
+    for (const id of args.ids) {
+      const product = await ctx.db.get(id);
+      if (!product) {
+        skipped++;
+        continue;
+      }
+      try {
+        switch (args.action.kind) {
+          case "cenaProcenat": {
+            const factor = (100 + args.action.percent) / 100;
+            const priceRsd = Math.max(1, Math.round(product.priceRsd * factor));
+            await ctx.db.patch(id, { priceRsd: validatePrice(priceRsd) });
+            break;
+          }
+          case "popust":
+            await ctx.db.patch(id, { discountPercent: validateDiscount(args.action.discountPercent) });
+            break;
+          case "vidljivost":
+            await ctx.db.patch(id, { active: args.action.active });
+            break;
+          case "stanje":
+            await ctx.db.patch(id, { stock: validateStock(args.action.stock) });
+            break;
+        }
+        changed++;
+      } catch {
+        skipped++;
+      }
+    }
+    return { changed, skipped };
+  },
+});
+
+/**
+ * Masovni upload slika: fajl je već u storage-u, a naziv fajla nosi `sku` ili `slug`.
+ * „orly-1234.jpg" → traži se `sku` „orly-1234", pa `slug`. Bez pogotka fajl se
+ * briše iz storage-a da ne ostane da se plaća, a panel prijavi koji naziv nije prepoznat.
+ */
+export const attachImageByName = mutation({
+  args: { key: v.optional(v.string()), storageId: v.id("_storage"), fileName: v.string() },
+  returns: v.object({ matched: v.boolean(), name: v.union(v.string(), v.null()) }),
+  handler: async (ctx, args) => {
+    await assertAdmin(ctx, args.key);
+    const stem = args.fileName.replace(/\.[a-z0-9]+$/i, "").trim();
+
+    // Šifre su verzalne („GUMDROP"), slug-ovi mala slova („kiss-the-bride") —
+    // naziv fajla sa telefona ume da bude bilo šta, pa se probaju svi oblici.
+    const product =
+      (await productBySku(ctx, stem)) ??
+      (await productBySku(ctx, stem.toUpperCase())) ??
+      (await productBySlug(ctx, stem.toLowerCase()));
+    if (!product) {
+      await ctx.storage.delete(args.storageId);
+      return { matched: false, name: null };
+    }
+
+    await ctx.db.patch(product._id, {
+      storageImageIds: [...product.storageImageIds, args.storageId],
+      swatchOnly: false,
+    });
+    return { matched: true, name: product.name };
+  },
+});
+
+/**
+ * Brisanje probnog proizvoda po šifri — za čišćenje posle testiranja uvoza.
+ * Nije izloženo panelu: katalog se u adminu SKLANJA (`active: false`), ne briše,
+ * jer stare porudžbine i dalje pokazuju šta je kupljeno.
+ *
+ *   npx convex run products:purgeBySku '{"sku":"TESTNOVI"}'
+ */
+export const purgeBySku = internalMutation({
+  args: { sku: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const product = await productBySku(ctx, args.sku.trim());
+    if (!product) return 0;
+    for (const id of product.storageImageIds) await ctx.storage.delete(id);
+    await ctx.db.delete(product._id);
+    return 1;
   },
 });

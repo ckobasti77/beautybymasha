@@ -11,6 +11,7 @@ import { buildIpsPaymentDetails, isIpsConfigured } from "../lib/ips";
 import { PAYMENT_METHOD_LABELS } from "../lib/site";
 import { productShortName } from "../lib/ips-purpose";
 import { belgradeNow } from "../lib/slots";
+import { getShopConfig } from "./lib/availability";
 
 /**
  * Porudžbine webshopa.
@@ -180,9 +181,11 @@ export const create = mutation({
     const loyalty = user ? await loyaltyStatusFor(ctx, user) : null;
     const loyaltyApplies = loyalty?.eligible === true;
 
+    // Poštarina, prag i loyalty procenat dolaze iz podešavanja koja vlasnica menja u adminu.
     const totals = cartTotals(
       lines.map((l) => ({ priceRsd: l.unitPriceRsd, discountPercent: l.discountPercent, qty: l.qty })),
       loyaltyApplies,
+      await getShopConfig(ctx),
     );
     const orderNumber = await nextOrderNumber(ctx, now);
     const paymentStatus = args.paymentMethod === "ips" ? "ceka_uplatu" : "nije_potrebno";
@@ -343,9 +346,11 @@ export const quote = query({
       });
     }
 
+    // Poštarina, prag i loyalty procenat dolaze iz podešavanja koja vlasnica menja u adminu.
     const totals = cartTotals(
       lines.map((l) => ({ priceRsd: l.unitPriceRsd, discountPercent: l.discountPercent, qty: l.qty })),
       loyaltyApplies,
+      await getShopConfig(ctx),
     );
 
     return {

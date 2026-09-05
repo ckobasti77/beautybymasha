@@ -1,31 +1,30 @@
-﻿Korak 05 je gotov i komitovan (`2feacdd`). Dev server je ugašen, probni podaci obrisani.
+﻿Admin panel is done. Dev server is off, port 3001 free.
 
-## Provera prethodnog koraka
-`typecheck` ✓, `lint` ✓, produkcija HTTP 200. Korak 04 nije ostavio ništa slomljeno — ništa nije trebalo popravljati.
+**Previous step check (first 10 min):** typecheck, lint, and prod were all clean — nothing to fix. `/zakazivanje` returning 404 in prod is correct; the booking wizard is an anchor on the landing page, not a route.
 
-## Šta je napravljeno
+## What shipped
 
-**`/shop`** — zid od 70 swatch-eva u serverskom HTML-u. Pet filtera (brend, kategorija, porodica boje, finiš, cena) čije stanje nosi URL; svaka lista nudi samo vrednosti koje uz ostale filtere zaista postoje. Cene se crtaju iz statičkog kataloga, pa ih živa cena iz Convex-a prepiše (popust = precrtana stara cena).
+All 12 tabs from `docs/ADMIN.md`, ~5.300 lines across `components/admin/` + `app/admin/`. The four load-bearing ones:
 
-**`/shop/[slug]`** — 70 statički generisanih strana, `generateMetadata`, `Product`/`Offer`/`BreadcrumbList` JSON-LD bez izmišljenih ocena, srodni proizvodi, „Dostupno i u salonu".
+- **Danas** — summary line, location switch, day grouped by resource, tap → sheet with Pozovi/Viber/Pomeri/Otkaži, revenue in three figures, no chart.
+- **Kalendar** — week per location with **lanes per resource**; overlapping bookings split the lane width (three manicures at 10:00 are three narrow blocks). Phone shows one day + week strip with swipe; `lg+` shows the full week. Tap empty space writes a booking or a break.
+- **Proizvodi** — the import: file → column mapping (auto-guessed) → 20-row preview → `3 ažurirano · 1 novo · 1 preskočeno` with reasons. Plus CSV export, bulk price/discount/visibility, mass image upload matched by filename.
+- **Loyalty** — search by card/name/phone/email, QR scanner with manual entry as a full equal fallback, `Iskoristi 10%`.
 
-**`/korpa`, `/placanje`, `/porudzbina`** — korpa, naplata, praćenje po broju i telefonu.
+## Two bugs the browser pass caught
 
-**`/nalog`** — registracija (imejl, lozinka, potvrda), prijava, odjava, članska kartica sa QR kodom, istorija termina i porudžbina.
+1. **`xlsx` was eating Serbian prices.** With `raw: true` it parsed `2.190,00` as **2,19** — the whole price list would have silently gone two-digit. Fixed with `raw: false`, covered by tests.
+2. **Catalog entry ran 1,5 s** over 70 cards, past the MOTION.md ceiling, leaving cards at `opacity: 0`. `AdminReveal` now uses `stagger: { amount }`.
 
-## Tri stvari na koje ste tražili da pazim
-1. **Dva brenda.** ORLY: gloss sweep 600 ms, pa crossfade fotografije (delay 300 ms). Entity `swatchOnly`: samo boja i sweep. Provereno u browseru — na `?brend=entity` kartice imaju **nula** `<img>` elemenata. Hover je iza `can-hover` varijante, pa na telefonu slika ne ostaje zalepljena posle tapa.
-2. **Cene sa servera.** `localStorage` nosi samo `{slug, qty}` i odbacuje cenu koju bi neko dopisao (test to pokriva). Zbir dolazi iz nove `orders.quote`, a `orders.create` ga ponovi iz baze. **Loyalty popust je zaseban red** — `Loyalty popust 10% − 398 RSD`, potvrđeno i u browseru i testom.
-3. **Članska kartica.** QR sadrži isključivo `loyaltyNumber`. Na 390 px bez prekoračenja, broj krupno i pod QR-om.
+Verified end to end against live dev Convex with a real spreadsheet: prices landed as 2190/2290/1850, the priceless row was skipped with a reason, and an **empty stock cell did not overwrite the existing value**. Test data purged, catalog restored.
 
-## Popravljeno usput, van zadatka
-`JWT_PRIVATE_KEY` na dev deployment-u je bio odsečen na prvi red PEM-a, pa je **svaka prijava padala** sa `invalid RSA PrivateKeyInfo`. To se do sada nije videlo jer nijedna strana nije koristila prijavu. Ključevi su regenerisani. Isti problem čeka `--prod` ako se ključ postavlja iz PowerShell-a.
+## One deviation you should read
 
-## Završna provera
-`npx convex dev --once` ✓ · `typecheck` ✓ · `lint` ✓ (nula upozorenja) · `98 testova` ✓ · `build` ✓ (80 strana). MOTION.md provera vraća prazan niz na svim novim stranama, na 390 px i 1440 px, bez horizontalnog skrola.
+The spec asks for server-side protection on `/admin`. You get `noindex` from the server plus `assertAdmin`/`assertStaff` on every single query and mutation — no data reaches an unauthorized client either way. True SSR gating needs swapping `ConvexAuthProvider` for `ConvexAuthNextjsProvider` + middleware, which moves the token from localStorage to cookies and touches the sign-in flow step 05 verified working. I didn't do that mid-step; it's written up in `docs/STATUS.md` as its own task.
 
-## Šta ostaje da se pita vlasnicu
-Novo u `docs/STATUS.md`: dijakritika u `data/products.json` (piše „najbliza" umesto „najbliža" na svih 70 strana — nisam dirao jer taj fajl menja paralelna sesija), rok isporuke i kurir, i strana o reklamacijama koju zakon traži za webshop. IPS i dalje čeka broj računa; opcija se prikazuje isključena, QR se ne pravi.
+Also open: `OWNER_EMAIL` isn't set on dev or prod — set it before handing her the panel, or she can't become admin. And `data/site.json` has "Ljubicica" without diacritics, visible on the public site too; I left `data/*.json` alone since another session edits those.
+
+Checks: `convex dev --once`, `typecheck`, `lint` (zero warnings), `116 tests`, `build` — all pass. Zero horizontal overflow and zero invisible text on all 12 tabs at both widths.
 
 
 ===== PROVERA: convex =====
@@ -34,7 +33,7 @@ Novo u `docs/STATUS.md`: dijakritika u `data/products.json` (piše „najbliza" 
 ▌ └─ https://grand-bandicoot-904.eu-west-1.convex.cloud
 - Preparing Convex functions...
 
-[32m✔[39m 06:42:55 Convex functions ready! (1.05s)
+[32m✔[39m 07:24:56 Convex functions ready! (1.05s)
 
 ===== PROVERA: typecheck =====
 
@@ -58,7 +57,8 @@ Novo u `docs/STATUS.md`: dijakritika u `data/products.json` (piše „najbliza" 
 
  [32m✓[39m lib/slots.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
  [32m✓[39m lib/cart.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m components/admin/tabs/importFormat.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 15[2mms[22m[39m
 [90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mkapacitet[2m > [22m[2mtri manikira u 10:00 prolaze, ČETVRTI pada
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
@@ -122,7 +122,7 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 [90mstdout[2m | convex/shop.test.ts
 [22m[39mnotify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-0001)
 
- [32m✓[39m convex/shop.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 669[2mms[22m[39m
+ [32m✓[39m convex/shop.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 660[2mms[22m[39m
 [90mstdout[2m | convex/bookings.test.ts
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 
@@ -165,12 +165,12 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 [90mstdout[2m | convex/bookings.test.ts
 [22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
 
- [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 714[2mms[22m[39m
+ [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 734[2mms[22m[39m
 
-[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
-[2m      Tests [22m [1m[32m98 passed[39m[22m[90m (98)[39m
-[2m   Start at [22m 06:43:02
-[2m   Duration [22m 1.29s[2m (tests 49%, import 30%, transform 18%, environment 3%, worker 1%)[22m
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m116 passed[39m[22m[90m (116)[39m
+[2m   Start at [22m 07:25:08
+[2m   Duration [22m 1.38s[2m (tests 42%, import 35%, transform 19%, environment 2%, worker 1%)[22m
 
 
 ===== PROVERA: build =====
@@ -180,23 +180,24 @@ notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (BM-2609-000
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 23ms
+✓ Running next.config.ts took 22ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 1712ms
+✓ Compiled successfully in 2.5s
   Running TypeScript ...
-  Finished TypeScript in 1665ms ...
-  Collecting page data using 12 workers ...
-  Generating static pages using 12 workers (0/80) ...
-  Generating static pages using 12 workers (20/80) 
-  Generating static pages using 12 workers (40/80) 
-  Generating static pages using 12 workers (60/80) 
-✓ Generating static pages using 12 workers (80/80) in 1155ms
+  Finished TypeScript in 1755ms ...
+  Collecting page data using 13 workers ...
+  Generating static pages using 13 workers (0/80) ...
+  Generating static pages using 13 workers (20/80) 
+  Generating static pages using 13 workers (40/80) 
+  Generating static pages using 13 workers (60/80) 
+✓ Generating static pages using 13 workers (80/80) in 1112ms
   Finalizing page optimization ...
 
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
+├ ƒ /admin
 ├ ○ /apple-icon
 ├ ○ /icon
 ├ ○ /korpa
@@ -211,24 +212,7 @@ Route (app)
   └ ● [+67 more paths]
 
 
-○  (Static)  prerendered as static content
-●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
 
-
-===== DEPLOY: korak 5 =====
-▌ Deploying code to deployment:
-▌ [Production] ckobasti77:beautybymasha:production (prod) (dashboard: https://dashboard.convex.dev/t/ckobasti77/beautybymasha/good-swordfish-571)
-▌ └─ https://good-swordfish-571.eu-west-1.convex.cloud
-- Deploying to https://good-swordfish-571.eu-west-1.convex.cloud...
-
-[32m✔[39m No indexes are deleted by this push
-Uploading functions to Convex...
-Generating TypeScript bindings...
-Running TypeScript...
-Pushing code to your Convex deployment...
-Schema validation complete.
-Finalizing push...
-✔ Added table indexes:
-  [+] bookings.by_customer   customerId, _creationTime
-✔ Deployed Convex functions to https://good-swordfish-571.eu-west-1.convex.cloud
-PROD OK 200 posle 30s cekanja

@@ -216,3 +216,53 @@ export const history = query({
       .take(50);
   },
 });
+
+/**
+ * Svi članovi, poslednja poseta prva. „Poseta" je isto što i za pravo na popust:
+ * završena porudžbina ili potvrđen termin. Član bez ijedne posete ide na dno,
+ * poređan po danu upisa.
+ */
+export const members = query({
+  args: { key: v.optional(v.string()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await assertStaff(ctx, args.key);
+    const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
+
+    const users = (await ctx.db.query("users").take(1000)).filter((u) => u.loyaltyNumber && u.role !== "admin");
+
+    const rows = await Promise.all(
+      users.map(async (u) => {
+        const orders = await ctx.db
+          .query("orders")
+          .withIndex("by_customer", (q) => q.eq("customerId", u._id))
+          .collect();
+        const bookings = await ctx.db
+          .query("bookings")
+          .withIndex("by_customer", (q) => q.eq("customerId", u._id as string))
+          .collect();
+
+        const visits = [
+          ...orders.filter((o) => o.status === "zavrsena").map((o) => o.updatedAt),
+          ...bookings.filter((b) => b.status === "potvrdjen").map((b) => b.decidedAt ?? b.createdAt),
+        ];
+        const lastVisitAt = visits.length > 0 ? Math.max(...visits) : null;
+
+        return {
+          userId: u._id,
+          loyaltyNumber: u.loyaltyNumber ?? null,
+          name: u.name ?? null,
+          email: u.email ?? null,
+          phone: u.phone ?? null,
+          lastVisitAt,
+          visitsCount: visits.length,
+          registeredAt: u.createdAt ?? u._creationTime,
+          ...(await loyaltyStatusFor(ctx, u)),
+        };
+      }),
+    );
+
+    return rows
+      .sort((a, b) => (b.lastVisitAt ?? 0) - (a.lastVisitAt ?? 0) || b.registeredAt - a.registeredAt)
+      .slice(0, limit);
+  },
+});

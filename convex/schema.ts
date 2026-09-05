@@ -400,7 +400,25 @@ export default defineSchema({
     // u jednom lokalu, jednog dana — u jednom čitanju.
     .index("by_location_resource_date", ["locationKey", "resourceKey", "date"]),
 
-  /** Jedan dokument. */
+  /**
+   * Fotografije radova — galerija na landingu. Redosled je njen (`order`),
+   * `featured` bira šta ide na naslovnu.
+   */
+  gallery: defineTable({
+    storageId: v.id("_storage"),
+    alt: v.string(),
+    featured: v.boolean(),
+    order: v.number(),
+    createdAt: v.number(),
+  }).index("by_order", ["order"]),
+
+  /**
+   * Jedan dokument.
+   *
+   * Polja ispod `hoursConfirmed` su opciona zato što dokument postoji od koraka 02,
+   * a ova su dodata u koraku 06. Prazno polje znači „važi vrednost iz data/site.json"
+   * (`convex/lib/availability.ts` → `getSettings`), pa stari dokument radi bez migracije.
+   */
   settings: defineTable({
     slotStepMin: v.number(),
     leadTimeMin: v.number(),
@@ -408,5 +426,12 @@ export default defineSchema({
     holdHours: v.number(),
     /** Postavlja se kad vlasnica prvi put sačuva radno vreme (skriva baner „Podesi radno vreme"). */
     hoursConfirmed: v.optional(v.boolean()),
+    /** Poštarina i prag za besplatnu dostavu; menja ih tab „Podešavanja". */
+    shippingFlatRsd: v.optional(v.number()),
+    shippingFreeOverRsd: v.optional(v.number()),
+    /** Loyalty popust u procentima (ADR-004). */
+    loyaltyPercent: v.optional(v.number()),
+    /** Poruka koju vlasnica šalje uz potvrdu termina. `{ime} {usluga} {datum} {vreme} {lokal}`. */
+    confirmMessage: v.optional(v.string()),
   }),
 });

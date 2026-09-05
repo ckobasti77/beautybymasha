@@ -15,6 +15,7 @@ import type * as blocks from "../blocks.js";
 import type * as bookings from "../bookings.js";
 import type * as capacities from "../capacities.js";
 import type * as crons from "../crons.js";
+import type * as gallery from "../gallery.js";
 import type * as http from "../http.js";
 import type * as inquiries from "../inquiries.js";
 import type * as lib_admin from "../lib/admin.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   bookings: typeof bookings;
   capacities: typeof capacities;
   crons: typeof crons;
+  gallery: typeof gallery;
   http: typeof http;
   inquiries: typeof inquiries;
   "lib/admin": typeof lib_admin;

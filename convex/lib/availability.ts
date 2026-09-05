@@ -17,6 +17,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { serviceGroupByKey, type ServiceGroupKey } from "../../lib/services";
 import { site, type LocationKey, type ResourceKey } from "../../lib/site";
+import type { ShopConfig } from "../../lib/shop";
 import {
   type Range,
   belgradeNow,
@@ -31,12 +32,23 @@ import {
 
 export type Ctx = QueryCtx | MutationCtx;
 
+/**
+ * Podrazumevana poruka uz potvrdu termina. Vlasnica je menja u „Podešavanjima";
+ * vitičaste zagrade se zamenjuju podacima termina pre slanja.
+ */
+export const DEFAULT_CONFIRM_MESSAGE =
+  "Zdravo {ime}, termin je potvrđen: {usluga}, {datum} u {vreme}, {lokal}. Vidimo se!";
+
 /** Podrazumevana podešavanja — iz data/site.json, ne izmišljena. */
 export const DEFAULT_SETTINGS = {
   slotStepMin: site.booking.slotStepMin,
   leadTimeMin: site.booking.leadTimeMin,
   horizonDays: site.booking.horizonDays,
   holdHours: site.booking.holdHours,
+  shippingFlatRsd: site.shipping.flatRsd,
+  shippingFreeOverRsd: site.shipping.freeOverRsd,
+  loyaltyPercent: site.loyalty.discountPercent,
+  confirmMessage: DEFAULT_CONFIRM_MESSAGE,
 } as const;
 
 export type Settings = {
@@ -45,6 +57,10 @@ export type Settings = {
   horizonDays: number;
   holdHours: number;
   hoursConfirmed: boolean;
+  shippingFlatRsd: number;
+  shippingFreeOverRsd: number;
+  loyaltyPercent: number;
+  confirmMessage: string;
 };
 
 function byLocation<T>(pick: (location: (typeof site.locations)[number]) => T): Record<LocationKey, T> {
@@ -71,12 +87,27 @@ export const MAX_SERVICES = 400;
 export async function getSettings(ctx: Ctx): Promise<Settings> {
   const doc = await ctx.db.query("settings").first();
   if (!doc) return { ...DEFAULT_SETTINGS, hoursConfirmed: false };
+  // Polja dodata u koraku 06 fale u starijem dokumentu — tada važi data/site.json.
   return {
     slotStepMin: doc.slotStepMin,
     leadTimeMin: doc.leadTimeMin,
     horizonDays: doc.horizonDays,
     holdHours: doc.holdHours,
     hoursConfirmed: doc.hoursConfirmed ?? false,
+    shippingFlatRsd: doc.shippingFlatRsd ?? DEFAULT_SETTINGS.shippingFlatRsd,
+    shippingFreeOverRsd: doc.shippingFreeOverRsd ?? DEFAULT_SETTINGS.shippingFreeOverRsd,
+    loyaltyPercent: doc.loyaltyPercent ?? DEFAULT_SETTINGS.loyaltyPercent,
+    confirmMessage: doc.confirmMessage ?? DEFAULT_SETTINGS.confirmMessage,
+  };
+}
+
+/** Podešavanja shopa u obliku koji `lib/shop.ts` očekuje. */
+export async function getShopConfig(ctx: Ctx): Promise<ShopConfig> {
+  const s = await getSettings(ctx);
+  return {
+    shippingFlatRsd: s.shippingFlatRsd,
+    shippingFreeOverRsd: s.shippingFreeOverRsd,
+    loyaltyPercent: s.loyaltyPercent,
   };
 }
 

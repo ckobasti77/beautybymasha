@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import schema, { locationKeyValidator, overrideKindValidator, rangeValidator } from "./schema";
-import { assertAdmin } from "./lib/admin";
+import { assertAdmin, assertStaff } from "./lib/admin";
 import { DEFAULT_SETTINGS, MAX_SCHEDULE_ROWS } from "./lib/availability";
 import { MESSAGES, shortText, validateRanges } from "./lib/validate";
 import { isValidDate } from "../lib/slots";
@@ -11,7 +11,7 @@ export const listWeekly = query({
   args: { key: v.string() },
   returns: v.array(schema.doc("schedules")),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     return await ctx.db.query("schedules").take(200);
   },
 });
@@ -79,7 +79,7 @@ export const listOverrides = query({
   args: { key: v.string(), from: v.string(), to: v.string() },
   returns: v.array(schema.doc("scheduleOverrides")),
   handler: async (ctx, args) => {
-    await assertAdmin(ctx, args.key);
+    await assertStaff(ctx, args.key);
     return await ctx.db
       .query("scheduleOverrides")
       .withIndex("by_date", (q) => q.gte("date", args.from).lte("date", args.to))

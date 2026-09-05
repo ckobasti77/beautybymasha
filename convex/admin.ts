@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { assertAdmin } from "./lib/admin";
+import { assertAdmin, assertStaff, currentUser } from "./lib/admin";
+import { belgradeNow } from "../lib/slots";
+import { roleValidator } from "./schema";
 import {
   DEFAULT_CAPACITY,
   DEFAULT_SETTINGS,
@@ -11,6 +13,49 @@ import {
 import { RESOURCE_KEYS, site } from "../lib/site";
 import { services as catalog } from "../lib/services";
 import { productCategories as productCategoryCatalog, products as productCatalog } from "../lib/products";
+
+/**
+ * Ko sam ja i šta smem da vidim. Nikad ne puca — gost dobija `role: null`, pa
+ * panel ume da ga pošalje na prijavu umesto da prikaže grešku.
+ *
+ * `keyWorks` je tačno onaj rezervni put iz convex/lib/admin.ts: važi samo dok u
+ * bazi nema nijednog admin naloga.
+ */
+export const me = query({
+  args: { key: v.optional(v.string()) },
+  returns: v.object({
+    signedIn: v.boolean(),
+    role: v.union(roleValidator, v.null()),
+    name: v.union(v.string(), v.null()),
+    email: v.union(v.string(), v.null()),
+    canOpenPanel: v.boolean(),
+    isAdmin: v.boolean(),
+    keyWorks: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const user = await currentUser(ctx);
+    const adminExists =
+      (await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", "admin"))
+        .first()) !== null;
+
+    const adminKey = process.env.ADMIN_KEY;
+    const keyWorks = !adminExists && !!adminKey && args.key === adminKey;
+    const role = user?.role ?? null;
+    const isAdmin = role === "admin" || keyWorks;
+
+    return {
+      signedIn: user !== null,
+      role,
+      name: user?.name ?? null,
+      email: user?.email ?? null,
+      canOpenPanel: isAdmin || role === "staff",
+      isAdmin,
+      keyWorks,
+    };
+  },
+});
 
 /** Da li je baza inicijalizovana i da li vlasnica tek treba da potvrdi radno vreme. */
 export const status = query({
@@ -217,5 +262,95 @@ export const purgeUserByEmail = internalMutation({
 
     await ctx.db.delete(user._id);
     return 1;
+  },
+});
+
+/**
+ * Prvi ekran: sve što joj treba dok otključava telefon, u jednom čitanju.
+ *
+ * Promet dana je namerno dvodelan: usluge su zbir cena potvrđenih termina tog
+ * dana (procena — cena usluge iz cenovnika), shop je zbir robe u porudžbinama
+ * napravljenim tog dana bez otkazanih. Poštarina se ne broji u promet.
+ */
+export const today = query({
+  args: { key: v.optional(v.string()), date: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await assertStaff(ctx, args.key);
+    const date = args.date ?? belgradeNow().date;
+
+    const bookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_date", (q) => q.eq("date", date))
+      .take(500);
+
+    const pending = await ctx.db
+      .query("bookings")
+      .withIndex("by_status", (q) => q.eq("status", "nov"))
+      .take(200);
+
+    const services = await ctx.db.query("services").take(500);
+    const priceOf = new Map(services.map((s) => [s.key, s.priceRsd ?? 0]));
+
+    const confirmed = bookings.filter((b) => b.status === "potvrdjen");
+    const servicesRevenueRsd = confirmed.reduce((sum, b) => sum + (priceOf.get(b.serviceKey) ?? 0), 0);
+
+    // Granice dana po beogradskom vremenu — porudžbine se broje po `createdAt`.
+    const dayStartMs = new Date(`${date}T00:00:00+02:00`).getTime();
+    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+    const recentOrders = await ctx.db.query("orders").withIndex("by_createdAt").order("desc").take(200);
+    const todaysOrders = recentOrders.filter(
+      (o) => o.createdAt >= dayStartMs && o.createdAt < dayEndMs && o.status !== "otkazana",
+    );
+    const shopRevenueRsd = todaysOrders.reduce((sum, o) => sum + o.subtotalRsd - o.loyaltyDiscountRsd, 0);
+    const newOrders = recentOrders.filter((o) => o.status === "nova").length;
+
+    return {
+      date,
+      bookings: bookings
+        .filter((b) => b.status === "nov" || b.status === "potvrdjen")
+        .sort((a, b) => a.startMin - b.startMin),
+      counts: {
+        today: confirmed.length,
+        pending: pending.length,
+        newOrders,
+      },
+      revenue: {
+        servicesRsd: servicesRevenueRsd,
+        shopRsd: shopRevenueRsd,
+        totalRsd: servicesRevenueRsd + shopRevenueRsd,
+      },
+    };
+  },
+});
+
+/** Bedževi u navigaciji — jedan upit umesto dva, i ne puca za radnicu. */
+export const badges = query({
+  args: { key: v.optional(v.string()) },
+  returns: v.object({ pending: v.number(), newOrders: v.number(), newMessages: v.number() }),
+  handler: async (ctx, args) => {
+    const user = await assertStaff(ctx, args.key);
+    const pending = (
+      await ctx.db
+        .query("bookings")
+        .withIndex("by_status", (q) => q.eq("status", "nov"))
+        .take(200)
+    ).length;
+
+    // Radnica ne vidi porudžbine ni poruke, pa im ni bedž ne treba.
+    if (user !== null && user.role === "staff") return { pending, newOrders: 0, newMessages: 0 };
+
+    const newOrders = (
+      await ctx.db
+        .query("orders")
+        .withIndex("by_status", (q) => q.eq("status", "nova"))
+        .take(200)
+    ).length;
+    const newMessages = (
+      await ctx.db
+        .query("inquiries")
+        .withIndex("by_status", (q) => q.eq("status", "nova"))
+        .take(200)
+    ).length;
+    return { pending, newOrders, newMessages };
   },
 });
