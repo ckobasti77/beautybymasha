@@ -1,0 +1,189 @@
+﻿Done. Committed as `5fe7158`.
+
+## Previous-step check (first, as asked)
+`docs/STATUS.md` read, `typecheck` ✓, `lint` ✓, production `https://beautybymasha-mu.vercel.app` → HTTP 200. Step 03 left nothing broken, so I went straight to the task.
+
+## What's on the page
+Landing in BRAND.md §7 order: Nav · Hero · Loyalty · Usluge · Zakazivanje · Radovi · ORLY · Cenovnik · Lokacije · Recenzije · Kontakt.
+
+**Hero** — R3F plane + fragment shader: simplex fBm, two-pass domain warping, the design-DNA palette, a slow specular band, ~24 s cycle. Pointer pushes the field with inertia, scroll pushes depth. `dpr [1,1.75]`, `antialias false`, `frameloop` drops to `demand` off-screen and on a hidden tab.
+
+**Fallback** — `useHeroWebGL` requires WebGL2 **and** width > 768px **and** no `prefers-reduced-motion`. Fail any one and `<LiquidCanvas>` is never mounted; a static CSS radial-gradient renders instead. Verified at 390px: `#hero canvas` is absent. I made the fallback fully static rather than animating `background-position` — repainting the whole first screen every frame is exactly the cost her phone-first audience shouldn't pay.
+
+**Scroll scenario** (desktop, no-preference only) — measured in the browser: hero pins (`position: fixed`), wordmark Flips into the nav (scale 1 → 0.067), the nav logo appears only on landing, the shader collapses 140% → 13% circle, pin releases.
+
+**Wizard** — driven end to end against the live dev Convex deployment: location → search "secer" (finds "šećernom") → 45 real slots → submit → "Zahtev je primljen. Javljamo se u roku od 24 h". Test booking purged afterwards.
+
+**Gallery** — `photo` variant, with `bbm-09`, `bbm-10`, `bbm-24` as `card` per their `note`. Alt texts verbatim.
+
+## Final checks
+`convex dev --once` ✓ · `typecheck` ✓ · `lint` ✓ (0 warnings) · `test` ✓ 79/79 · `build` ✓. Dev server stopped. The MOTION.md reveal check returns **`[]`** at 1440px and 390px, `pending` 0, `.reveal-word` 0, horizontal overflow 0.
+
+## Three things I fixed that weren't mine, and two you should decide
+Shared-file changes (all in STATUS.md): `Reveal` needed a `revealOff` escape hatch — an `<li>` holding only an image was hidden by `hideCss()`, skipped by `TextRevealGlobal` (no text), and `variant="clip"` never touches `opacity`, so it stayed invisible. `TextRevealGlobal` now also flushes elements that scrolled past unfired; fast scrolling reproducibly stranded 12 elements at 390px. Two latent type errors in `Card.tsx`/`Input.tsx` surfaced once the tsbuildinfo cache was invalidated.
+
+Two calls I want to flag:
+
+- **Diacritics are missing site-wide, and it's the data, not the code.** `data/site.json` and `data/services.json` are ASCII, so the page shows "Ljubicica" and "Depilacija secernom pastom". This is the most visible flaw on tomorrow's screen. I did not rewrite them: your memory notes those files are edited by a parallel session, and 144 of those strings are her verbatim price list. It's a one-pass data fix once you say go.
+- **BRAND.md's fifth circle "Nega lica" has no services behind it.** The price list contains none. I used the `ostalo` group (brow lamination, kana, šminkanje, detox — all price-less) rather than invent a category. Also, she has no depilation or massage photos, so those two circles carry a pedicure and a nail-art shot; alt text is accurate, the motif isn't.
+
+I created two ~30-line placeholder pages at `/shop` and `/nalog` so the "Ceo katalog" and "Registrujte se" buttons don't 404 during the demo. Both are marked in their file header as step-05's to delete.
+
+
+===== PROVERA: convex =====
+▌ Developing against deployment:
+▌ [Development] ckobasti77:beautybymasha:dev/jovan-milojevic (dev) (dashboard: https://dashboard.convex.dev/t/ckobasti77/beautybymasha/grand-bandicoot-904)
+▌ └─ https://grand-bandicoot-904.eu-west-1.convex.cloud
+- Preparing Convex functions...
+
+[32m✔[39m 06:05:00 Convex functions ready! (1.22s)
+
+===== PROVERA: typecheck =====
+
+> beautybymasha@0.1.0 typecheck
+> tsc --noEmit
+
+
+===== PROVERA: lint =====
+
+> beautybymasha@0.1.0 lint
+> eslint
+
+
+===== PROVERA: test =====
+
+> beautybymasha@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90mC:/Users/admin/Desktop/Web Dev Projects/beautybymasha[39m
+
+ [32m✓[39m lib/slots.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/data.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mkapacitet[2m > [22m[2mtri manikira u 10:00 prolaze, ČETVRTI pada
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+notify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Farbanje obrva, 2026-09-09 10:00–10:15)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts[2m > [22m[2mradno vreme dva lokala[2m > [22m[2mscheduleOverride kind=off gasi ceo dan, custom ga otvara
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+ [32m✓[39m convex/shop.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 591[2mms[22m[39m
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 11:00–11:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 13:00–13:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 15:00–15:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 14:00–14:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Terapeutska masaza - 30 min, 2026-09-09 10:00–10:30)
+
+[90mstdout[2m | convex/bookings.test.ts
+[22m[39mnotify.newRequest: RESEND_API_KEY nije postavljen — preskačem mejl (Manikir, 2026-09-09 10:00–10:45)
+
+ [32m✓[39m convex/bookings.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 745[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m79 passed[39m[22m[90m (79)[39m
+[2m   Start at [22m 06:05:08
+[2m   Duration [22m 1.36s[2m (tests 48%, import 36%, transform 13%, environment 3%, worker 1%)[22m
+
+
+===== PROVERA: build =====
+
+> beautybymasha@0.1.0 build
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 23ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1512ms
+  Running TypeScript ...
+  Finished TypeScript in 1629ms ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/7) ...
+  Generating static pages using 8 workers (1/7) 
+  Generating static pages using 8 workers (3/7) 
+  Generating static pages using 8 workers (5/7) 
+✓ Generating static pages using 8 workers (7/7) in 660ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /apple-icon
+├ ○ /icon
+├ ○ /nalog
+└ ○ /shop
+
+
+○  (Static)  prerendered as static content
+
