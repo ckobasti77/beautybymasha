@@ -1,18 +1,34 @@
 /**
- * Ono što hero gura u WebGL sloj spolja, van React state-a — menja se svakog frejma
- * (pointer) ili na svaki skrol (scrub) i ne sme da izaziva re-render. Bez importa:
- * ovaj fajl dele `Hero.tsx`, `LiquidCanvas.tsx` i `components/three/HeroBottle.tsx`,
- * pa ne sme da zatvori krug uvoza.
+ * Ono što hero gura u WebGL sloj i u DOM kap spolja, van React state-a — menja se svakog frejma
+ * (pointer, boja) ili na svaki skrol (scrub) i ne sme da izaziva re-render.
+ *
+ * BEZ importa: ovaj fajl dele `Hero.tsx`, `LiquidCanvas.tsx` i `components/three/HeroBottle.tsx`,
+ * pa ne sme da zatvori krug uvoza. I nosi SAMO brojeve i hex stringove: `THREE.Color` ovde bi
+ * povukao `three` u početni JS landinga (`Hero.tsx` nije lenji chunk) — boju u `Color` pretvara
+ * canvas (`components/three/liquidColor.ts`), sa kešom po hex-u.
  */
+
+/** Hex par iz ciklusa boja (lib/heroColors.ts) i mešavina između njih. */
+export type LiquidBlend = { from: string; to: string; t: number };
+
 export type HeroDrivers = {
   /** Cilj u opsegu -1..1; shader i bočica ga stižu inercijom. */
   readonly pointer: { current: { x: number; y: number } };
-  /** Napredak izlaska heroja iz kadra, 0..1 (ScrollTrigger scrub u `Hero.tsx`). */
+  /** Napredak hero zone, SIROV (bez lerp-a), 0..1 — jedan ScrollTrigger u `Hero.tsx`. */
   readonly scroll: { current: number };
+  /** Boja tečnosti koja se trenutno vidi (ciklus ili uhvaćena — tada ciklus stoji). */
+  readonly liquid: { current: LiquidBlend };
+  /** Uhvaćena boja (`#RRGGBB`) ili null dok ciklus teče — ulaz za razlivanje i ink. */
+  readonly captured: { current: string | null };
+  /**
+   * Tačka (uv, y na gore) iz koje kreće razlivanje: bočica je računa iz vrha vrata u svom frejmu,
+   * DOM kap (bez bočice) iz svog položaja pri merenju.
+   */
+  readonly pourOrigin: { current: { x: number; y: number } };
 };
 
 /**
  * Perspektivna kamera hero scene. Na 28 jedinica sa fov 30° vidljiva visina kadra je
- * ~15 jedinica, pa bočica od 9,48 jedinica prirodno zauzima ~62 % visine (spec 12 → B).
+ * ~15 jedinica, pa bočica od 9,48 jedinica prirodno zauzima ~62 % visine.
  */
 export const HERO_CAMERA = { fov: 30, distance: 28 } as const;

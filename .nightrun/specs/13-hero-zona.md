@@ -148,12 +148,36 @@ Pet bestselera iz `data/products.json`, redom (naizmenicno ORLY / Entity, razlic
 - SSR: copy i CTA se renderuju na serveru (LCP); canvas `dynamic ssr:false`; rezervisan prostor,
   CLS 0.
 
-## I. GLB IZ BLENDERA — poslednje, vremenski ograniceno
-Tek kad A-H prodju proveru. Najvise 60 minuta. Po `.nightrun/specs/12-hero-bocica.md`
-"MODEL IZ BLENDERA" sa jednom izmenom: mesh `Liquid` = PUNA unutrasnjost stakla (nivo daje
-clipping ravan iz F, ne geometrija). `useGLTF` + Draco dekoder u `public/draco/`. Ako Blender
-nije nadjen / budzet ne prolazi posle 2 pokusaja / vreme istekne -> proceduralna ostaje, razlog
-u STATUS. API `HeroBottle`/`BottleScene` se ne menja.
+## I. GLB IZ BLENDERA — kroz BLENDER MCP, poslednje, vremenski ograniceno
+Tek kad A-H prodju proveru. Najvise 60 minuta.
+
+METOD = Blender MCP (alati `mcp__Blender__*`/`execute_blender_code`), NE headless skripta.
+Blender 5.1.1 je otvoren na masini, add-on "MCP" (Blender Lab) drzi TCP server na
+localhost:9876 — ako MCP alati nisu u sesiji ili ne odgovaraju, upisi to u STATUS i tek onda
+fallback: `"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe" -b -P scripts/bottle.py`.
+
+Postupak kroz MCP:
+1. Nova scena (`bpy.ops.wm.read_homefile(use_empty=True)`), jedinice cm, Y-up se resava pri exportu.
+2. Geometrija tacno po `.nightrun/specs/12-hero-bocica.md` sekcija "MODEL IZ BLENDERA" (zaobljeni
+   kvadrat 3.2x3.2, radijus 0.9, visina 5.2, vrat 1.1/0.8, Solidify 0.12, Subdiv 2; Cap 1.9->1.7
+   visina 3.6, bevel 0.15, 8-12 zljebova; ukupno ~9.6) sa JEDNOM izmenom: mesh `Liquid` = PUNA
+   unutrasnjost stakla (nivo tecnosti daje clipping ravan iz F, ne geometrija). Imena meshova
+   TACNO `Glass` / `Liquid` / `Cap`. Bez etikete, teksta, armature, animacija. Apply transforms.
+3. Proveri kroz MCP screenshot/render (`render_viewport_to_path` ili viewport screenshot) da
+   silueta lici na ORLY bocicu (zdepast kvadratni korpus, visok zatvarac), pa tek onda export.
+4. Export GLB: `bpy.ops.export_scene.gltf(filepath=<repo>/public/models/bocica.glb,
+   export_format='GLB', export_draco_mesh_compression_enable=True, export_yup=True,
+   export_apply=True, export_cameras=False, export_lights=False, export_animations=False)`.
+5. Sav bpy kod koji si izvrsio kroz MCP sacuvaj i kao `scripts/bottle.py` (reproducibilno,
+   moze i headless kasnije) — to nije zamena za MCP, to je zapis.
+6. `npx gltf-transform inspect public/models/bocica.glb`: <= 40k trouglova, <= 500 KB,
+   tri mesha pod tim imenima. Ne prolazi -> popravi kroz MCP (decimate/manji subdiv), max 2 kruga.
+7. Ucitavanje: drei `useGLTF` + Draco dekoder kopiran u `public/draco/` (iz
+   `node_modules/three/examples/jsm/libs/draco/gltf/`), `useGLTF.preload`. `BottleModel`
+   menja unutrasnjost; API `HeroBottle`/`BottleScene` se ne menja. Boja tecnosti i clipping
+   ravan idu na mesh `Liquid` kao u F.
+
+Ne prodje (vreme, budzet, MCP mrtav) -> proceduralna ostaje, razlog u STATUS.
 
 ## J. PROVERA — 1440 i 390 (1920 po zelji), pravi tockic, dev server localhost:3001
 Pre svega: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001` (PowerShell:

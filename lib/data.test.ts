@@ -3,7 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { formatDuration, formatNumber, formatRsd } from "./format";
 import { photos, photoSrc } from "./photos";
-import { products, productsByBrand, productsByCategory, productBySlug, swatchProducts } from "./products";
+import { HERO_COLOR_SLUGS } from "./heroColors";
+import { hexesForSlugs, products, productsByBrand, productsByCategory, productBySlug, swatchProducts } from "./products";
 import { bookableServices, serviceByKey, serviceGroups, services, servicesByGroup, unpricedServices } from "./services";
 import { LOCATION_KEYS, RESOURCE_KEYS, locationByKey, locations, site } from "./site";
 
@@ -80,6 +81,11 @@ describe("products.json", () => {
   it("hex je #RRGGBB velikim slovima", () => {
     for (const p of products) expect(p.hex).toMatch(/^#[0-9A-F]{6}$/);
     expect(productBySlug("vintage")?.family).toBe("mint");
+  });
+  it("pet boja hero ciklusa postoji u katalogu (spec 13 → D), nepoznat slug obara", () => {
+    expect(hexesForSlugs(HERO_COLOR_SLUGS)).toEqual(["#6ECFC0", "#E88BC0", "#C61F35", "#D9C3AC", "#7B2233"]);
+    for (const slug of HERO_COLOR_SLUGS) expect(productBySlug(slug)?.bestseller ?? true, slug).toBe(true);
+    expect(() => hexesForSlugs(["ne-postoji"])).toThrow();
   });
 });
 

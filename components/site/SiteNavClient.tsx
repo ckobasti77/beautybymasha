@@ -10,25 +10,33 @@ import { FacebookIcon, InstagramIcon } from "@/components/site/SocialIcons";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useCart } from "@/lib/cartStore";
-import { EASE_ENTER, gsap, useGSAP } from "@/lib/gsap";
+import { EASE_ENTER, ScrollTrigger, gsap, useGSAP } from "@/lib/gsap";
+import { getHeroProgress, subscribeHeroProgress, useHeroFrost, useHeroOut } from "@/lib/heroProgress";
 import { locations, site } from "@/lib/site";
 
 /**
- * Navigacija — klijentski deo (server omotač je `SiteNav.tsx`).
+ * Navigacija — klijentski deo (server omotač je `SiteNav.tsx`). Z-skala: `z-[100]`, uvek
+ * iznad sadržaja (≤ 40); dijalozi 110, toast 120, skip-link 130 (docs/MOTION.md).
  *
- * Podloga: dok je hero u kadru traka je providna preko shadera; kad prođe 85 % heroja
- * (spec 12 → I) ili na svakoj strani bez heroja (`alwaysSolid`) traka dobija `nav-frost`
- * (82 % podloge + blur + linija ispod). Frost nosi UNUTRAŠNJA traka, ne `<nav>` —
- * `backdrop-filter` na pretku bi zarobio `position: fixed` panel menija u visinu trake.
+ * Instagram nav (spec 13 → B): traka se sakriva na skrol dole (≥ 24 px, scrollY > 120) i
+ * vraća na bilo koji skrol gore, blizu vrha, kad se otvori meni ili kad fokus uđe u nav.
+ * NIKAD nije sakrivena dok je hero u kadru (`p < 1`, lib/heroProgress.ts). Sakrivanje je
+ * SAMO `transform` na UNUTRAŠNJOJ traci (`.nav-bar[data-hidden]`, 320 / 240 ms), ne na
+ * `<nav>`: panel mobilnog menija je `fixed inset-0` unutar `<nav>`-a i transform na pretku bi
+ * mu postao containing block. Lanac predaka `<nav>`-a mora da ostane bez transform/filter.
+ * Vidljivost se vozi imperativno (atribut na traci), bez React state-a po skrolu.
  *
- * `#nav-logo-slot` je uvek u DOM-u; na landingu je `opacity: 0` dok hero wordmark ne doputuje
- * do njega (scrub u `components/hero/Hero.tsx` vozi opacity inline, ≥ 1024 px). Ispod toga
- * i uz reduced-motion logo se pojavi klasom kad hero prođe — isti `frost` signal.
+ * Podloga: providna preko heroja; `nav-frost` (blagi glass) od p ≥ 0.30 na landingu — tačno
+ * kad wordmark sleti u slot — i uvek na stranama bez heroja (`alwaysSolid`). Senka tek kad hero
+ * izađe. Frost nosi unutrašnja traka, ne `<nav>` (backdrop-filter na pretku bi zarobio panel).
  *
- * Mobilni meni (korak 12, ispočetka): pun ekran, NEPROVIDNA paper podloga — ispod je shader,
- * glass bi bio nečitljiv. Ulaz GSAP (podloga klizi odozgo 320 ms, stavke stagger 45 ms
- * odozdo), izlaz 150 ms opacity (DNA exit_pattern). Body je zaključan dok je otvoren
- * (overflow + Lenis stop). Meni je chrome: `data-reveal="off"`, ništa ne ulazi reč po reč.
+ * `#nav-logo-slot` je uvek u DOM-u; na landingu njegov inline opacity vozi hero
+ * (`components/hero/Hero.tsx`, u svim režimima), inače je vidljiv od početka.
+ *
+ * Mobilni meni (korak 12): pun ekran, NEPROVIDNA paper podloga — ispod je shader, glass bi bio
+ * nečitljiv. Ulaz GSAP (podloga klizi odozgo 320 ms, stavke stagger 45 ms odozdo), izlaz 150 ms
+ * opacity. Body je zaključan dok je otvoren (overflow + Lenis stop) — jedini lock na sajtu.
+ * Meni je chrome: `data-reveal="off"`, ništa ne ulazi reč po reč.
  *
  * `<nav>` je u `skipSelector`-u text-reveal sistema — čitljiv istog trenutka kad se pojavi.
  */
@@ -59,8 +67,13 @@ const ICON_LINK =
 const FOCUSABLE =
   'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-/** Koliki deo heroja sme da ostane u kadru pre nego što traka dobije podlogu. */
-const HERO_LEFT_RATIO = 0.15;
+/** Instagram nav — pragovi u px (spec B). */
+const HIDE_AFTER_DOWN = 24;
+const HIDE_MIN_SCROLL = 120;
+const SHOW_AFTER_UP = 4;
+const SHOW_NEAR_TOP = 8;
+/** Skok veći od ovoga u jednom update-u nije skrol korisnika (reload, deep link, scrollIntoView). */
+const JUMP_PX = 200;
 
 /**
  * Ikona korpe sa brojem stavki. Broj se ne crta dok se korpa ne pročita iz
@@ -85,26 +98,102 @@ function CartLink() {
 }
 
 /**
- * Frosted podloga se pali kad od `#hero` u kadru ostane manje od 15 % (= 85 % prošlo,
- * spec 12 → I), nezavisno od GSAP-a — radi i na 390 px i uz reduced-motion. Strane bez
- * heroja (`/shop`, `/nalog`) prosleđuju `alwaysSolid` — tamo se ništa ne posmatra.
+ * Sakrij na dole / pokaži na gore, imperativno na traci (`data-hidden`). Smer i pomeraj daje
+ * jedan ScrollTrigger preko cele strane (već sinhronizovan sa Lenis-om). Funkcija „pokaži" ide
+ * u `showRef` za meni (poziva je efekat otvaranja) — bez setState u efektu.
  */
-function useHeroPassed(alwaysSolid: boolean): boolean {
-  const [passed, setPassed] = useState(alwaysSolid);
-
+function useNavAutoHide(
+  navRef: RefObject<HTMLElement | null>,
+  barRef: RefObject<HTMLDivElement | null>,
+  alwaysSolid: boolean,
+  openRef: RefObject<boolean>,
+  showRef: RefObject<(() => void) | null>,
+) {
   useEffect(() => {
-    if (alwaysSolid) return;
-    const hero = document.getElementById("hero");
-    if (!hero) return;
-    const io = new IntersectionObserver(
-      ([entry]) => setPassed(entry.intersectionRatio < HERO_LEFT_RATIO),
-      { threshold: [0, HERO_LEFT_RATIO] },
-    );
-    io.observe(hero);
-    return () => io.disconnect();
-  }, [alwaysSolid]);
+    const nav = navRef.current;
+    const bar = barRef.current;
+    if (!nav || !bar) return;
 
-  return passed;
+    let visible = true;
+    let down = 0;
+    let up = 0;
+    let last: number | null = null;
+
+    const show = () => {
+      down = 0;
+      up = 0;
+      if (visible) return;
+      visible = true;
+      bar.removeAttribute("data-hidden");
+    };
+    const hide = () => {
+      if (!visible) return;
+      visible = false;
+      bar.setAttribute("data-hidden", "");
+    };
+    const heroP = () => (alwaysSolid ? 1 : getHeroProgress().p);
+
+    // `end` daleko iza dna: sa `end: "max"` se dno meri pri stvaranju, a strana posle raste
+    // (loyalty traka, Convex podaci) — u tom repu progres stoji na 1 i `onUpdate` ne stiže,
+    // pa se traka na samom dnu ne bi vratila. Ovako svaki piksel menja progres.
+    const trigger = ScrollTrigger.create({
+      start: 0,
+      end: () => Math.max(1, ScrollTrigger.maxScroll(window)) * 8,
+      onRefresh: (self) => {
+        last = self.scroll();
+        down = 0;
+        up = 0;
+      },
+      onUpdate: (self) => {
+        const y = self.scroll();
+        const delta = last === null ? 0 : y - last;
+        last = y;
+        if (Math.abs(delta) > JUMP_PX) {
+          down = 0;
+          up = 0;
+          return;
+        }
+        if (y <= SHOW_NEAR_TOP) {
+          show();
+          return;
+        }
+        if (delta < 0) {
+          up -= delta;
+          down = 0;
+          if (up >= SHOW_AFTER_UP) show();
+          return;
+        }
+        if (delta > 0) {
+          up = 0;
+          down += delta;
+          if (
+            down >= HIDE_AFTER_DOWN &&
+            y > HIDE_MIN_SCROLL &&
+            heroP() >= 1 &&
+            !openRef.current &&
+            !nav.contains(document.activeElement)
+          ) {
+            hide();
+          }
+        }
+      },
+    });
+
+    const onFocusIn = () => show();
+    nav.addEventListener("focusin", onFocusIn);
+    const unsubscribe = subscribeHeroProgress(() => {
+      if (!alwaysSolid && getHeroProgress().p < 1) show();
+    });
+    showRef.current = show;
+
+    return () => {
+      trigger.kill();
+      nav.removeEventListener("focusin", onFocusIn);
+      unsubscribe();
+      showRef.current = null;
+      bar.removeAttribute("data-hidden");
+    };
+  }, [navRef, barRef, alwaysSolid, openRef, showRef]);
 }
 
 /** Dve linije → X. Čist CSS transform na dva spana, 300 ms; 44×44 dodirna zona. */
@@ -144,8 +233,10 @@ export function SiteNavClient({
   /** Broj stavki cenovnika i proizvoda — izbrojano na serveru (`SiteNav.tsx`). */
   counts: { services: number; products: number };
 }) {
-  const frost = useHeroPassed(alwaysSolid);
+  const frost = useHeroFrost(alwaysSolid);
+  const heroOut = useHeroOut(alwaysSolid);
   const navRef = useRef<HTMLElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const lenis = useOptionalLenis();
@@ -158,6 +249,15 @@ export function SiteNavClient({
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn !== null && openOn === pathname;
   const setOpen = (next: boolean) => setOpenOn(next ? pathname : null);
+
+  const openRef = useRef(open);
+  const showNavRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    openRef.current = open;
+    // Otvoren meni: traka se vrati i hide/show miruje dok je otvoren.
+    if (open) showNavRef.current?.();
+  }, [open]);
+  useNavAutoHide(navRef, barRef, alwaysSolid, openRef, showNavRef);
 
   /* ---- dok je otvoren: Escape, hash, širina ≥ 1024, zaključan skrol, fokus, Tab u krugu ---- */
   useEffect(() => {
@@ -275,28 +375,27 @@ export function SiteNavClient({
   const countOf = (link: NavLink) => (link.count ? counts[link.count] : null);
 
   return (
-    <nav ref={navRef} aria-label="Glavna navigacija" className="fixed inset-x-0 top-0 z-40">
-      {/* Traka — iznad panela; frost nosi ona, ne <nav> (vidi zaglavlje fajla). */}
+    <nav ref={navRef} aria-label="Glavna navigacija" className="fixed inset-x-0 top-0 z-[100]">
+      {/* Traka — iznad panela; frost i transform za sakrivanje nosi ona, ne <nav> (vidi zaglavlje). */}
       <div
-        className={[
-          "relative z-10 transition-[background-color,border-color,box-shadow] duration-300",
-          frost ? "nav-frost shadow-card" : "border-b border-transparent bg-transparent",
-        ].join(" ")}
+        ref={barRef}
+        className={["nav-bar relative z-10", frost ? "nav-frost" : "", heroOut ? "nav-shadow" : ""]
+          .filter(Boolean)
+          .join(" ")}
       >
-        <div className="mx-auto flex h-16 w-full max-w-content items-center gap-3 px-4 md:h-20 md:px-8">
+        <div className="mx-auto flex h-[var(--nav-h)] w-full max-w-content items-center gap-3 px-4 md:px-8">
           <Link
             href="/#hero"
             id="nav-logo-slot"
             aria-label={`${site.name} — na vrh strane`}
             className={[
               "inline-flex shrink-0 items-center rounded-pill focus-ring transition-opacity duration-300",
-              // Na landingu ≥ 1024 px inline opacity vozi hero scrub (pobeđuje klasu);
-              // inače se logo pojavi ovom klasom kad hero prođe. Bez heroja: vidljiv od početka.
-              frost ? "opacity-100" : "opacity-0",
+              // Na landingu inline opacity vozi hero scrub (u svim režimima); bez heroja: vidljiv od početka.
+              alwaysSolid ? "opacity-100" : "opacity-0",
             ].join(" ")}
           >
             {/* <400 px: mali krug (wordmark ne bi bio čitljiv). Inače horizontalni wordmark
-                visine ~30 px. Visina nav trake se NE menja (h-16/h-20). */}
+                visine ~30 px. Visina nav trake se NE menja (`--nav-h`: 64 / 80 px). */}
             <Logo variant="mark" size={44} decorative className="min-[400px]:hidden" />
             <Logo variant="wordmark" size={88} decorative className="hidden text-fg min-[400px]:block" />
           </Link>

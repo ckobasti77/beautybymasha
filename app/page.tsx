@@ -10,9 +10,11 @@ import { ServicesCircles } from "@/components/sections/ServicesCircles";
 import { ShopHighlights } from "@/components/sections/ShopHighlights";
 import { TeamSection } from "@/components/sections/TeamSection";
 import { JsonLd } from "@/components/site/JsonLd";
+import { HERO_COLOR_SLUGS } from "@/lib/heroColors";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteNav } from "@/components/site/SiteNav";
 import { localBusinessJsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/jsonLd";
+import { hexesForSlugs } from "@/lib/products";
 import { locations } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -37,6 +39,12 @@ export const metadata: Metadata = {
  * stranicu: na naslovnoj je ceo NAP oba lokala, pa je to stranica koju Google
  * spaja sa Business Profile-om. Lokali su DVA odvojena `BeautySalon` entiteta —
  * različita adresa i različito radno vreme (Mimoza ponedeljkom ne radi).
+ *
+ * Hero (korak 13): boje ciklusa se čitaju OVDE, na serveru — `data/products.json` ne ulazi u
+ * klijentski JS zbog pet hex vrednosti. Sve posle heroja stoji u `.hero-overlap` omotaču
+ * (neprovidan, zaobljen vrh, senka nagore) koji pokriva stage heroja dok ovaj zaostaje za
+ * stranom (spec G). Omotač je `relative` BEZ z-index-a: stacking context bi zarobio inline
+ * dijaloge (lightbox galerije) ispod navigacije — vidi docs/MOTION.md → Z-skala.
  */
 export default function Home() {
   return (
@@ -48,18 +56,20 @@ export default function Home() {
       ))}
       <SiteNav />
       <main id="sadrzaj">
-        <Hero />
-        <div className="pt-16 md:pt-20">
-          <LoyaltyBar />
+        <Hero colors={hexesForSlugs(HERO_COLOR_SLUGS)} />
+        <div className="hero-overlap relative rounded-t-[28px] bg-bg">
+          <div className="pt-16 md:pt-20">
+            <LoyaltyBar />
+          </div>
+          <ServicesCircles />
+          <BookingSection />
+          <Gallery />
+          <TeamSection />
+          <ShopHighlights />
+          <PriceList />
+          <LocationsSection />
+          <ReviewsSection />
         </div>
-        <ServicesCircles />
-        <BookingSection />
-        <Gallery />
-        <TeamSection />
-        <ShopHighlights />
-        <PriceList />
-        <LocationsSection />
-        <ReviewsSection />
       </main>
       <SiteFooter />
     </>

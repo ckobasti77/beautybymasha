@@ -90,7 +90,7 @@ export function Sheet({ open, onClose, title, description, children, footer }: S
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="presentation">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center md:items-center md:p-6" role="presentation">
           <motion.div
             aria-hidden
             className="absolute inset-0 bg-ink/40"

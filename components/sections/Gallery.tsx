@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
@@ -94,7 +95,7 @@ function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={photo.alt}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/85 p-4"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-ink/85 p-4"
       onClick={onClose}
     >
       <button
@@ -161,9 +162,14 @@ export function Gallery() {
         ))}
       </Reveal>
 
-      {index !== null && PHOTOS[index] ? (
-        <Lightbox photo={PHOTOS[index]} onClose={close} onStep={step} />
-      ) : null}
+      {/*
+        Portal u body (Z-skala, docs/MOTION.md): dijalog sa `z-[110]` važi samo u korenskom
+        stacking context-u — omotač sadržaja iznad heroja ne sme da ga zarobi ispod nav-a.
+        Renderuje se tek posle klika, pa `document` postoji.
+      */}
+      {index !== null && PHOTOS[index]
+        ? createPortal(<Lightbox photo={PHOTOS[index]} onClose={close} onStep={step} />, document.body)
+        : null}
     </Section>
   );
 }

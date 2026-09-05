@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "scripts/**",
     // Convex generise ovaj kod - ne lintuje se.
     "convex/_generated/**",
+    // Draco dekoder (three/examples) kopiran u public/ za GLB bocicu - tudji kod.
+    "public/draco/**",
   ]),
 ]);
 

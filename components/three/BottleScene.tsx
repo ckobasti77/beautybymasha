@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import type { Group } from "three";
+import { Plane, type Group } from "three";
 import { BottleModel } from "./BottleModel";
+import { updateLiquidPlane } from "./liquidLevel";
 
 /**
  * WebGL sloj bočice na zidu shopa. Montira se SAMO kad `BottleShowcase` utvrdi da smemo
@@ -13,7 +14,8 @@ import { BottleModel } from "./BottleModel";
  * Sama bočica (mreže, materijali, okruženje) je u `BottleModel.tsx` — deli je sa herojem.
  * Ovde je samo ono što je specifično za shop: spora rotacija i prevlačenje.
  * Bez postprocessinga i bez senki (docs/3D-ASSETS.md): jedno usmereno svetlo + studio
- * okruženje iz `RoomEnvironment`.
+ * okruženje iz `RoomEnvironment`. Nivo tečnosti je svetska clipping ravan (`liquidLevel.ts`,
+ * korak 13): dok se bočica vrti i naginje, površina ostaje ravna.
  */
 
 /**
@@ -49,6 +51,7 @@ function Bottle({ hex, drivers }: { hex: string; drivers: BottleDrivers }) {
   const seenY = useRef(0);
   const spin = useRef(IDLE_SPIN);
   const tilt = useRef(0);
+  const [plane] = useState(() => new Plane());
 
   useFrame((_, rawDelta) => {
     const g = group.current;
@@ -74,9 +77,12 @@ function Bottle({ hex, drivers }: { hex: string; drivers: BottleDrivers }) {
       tilt.current += (0 - tilt.current) * SPIN_SETTLE * 2;
     }
     g.rotation.x = tilt.current;
+    // Ravan iz matrice OVOG frejma — R3F matrice osvežava tek pri crtanju.
+    g.updateMatrixWorld(true);
+    updateLiquidPlane(plane, g);
   });
 
-  return <BottleModel hex={hex} groupRef={group} />;
+  return <BottleModel hex={hex} groupRef={group} liquidPlane={plane} />;
 }
 
 export default function BottleScene({
@@ -96,7 +102,12 @@ export default function BottleScene({
       dpr={[1, 1.75]}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       frameloop={active ? "always" : "demand"}
+      // Bez praćenja skrola (vidi LiquidCanvas): setSize samo kad se blok zaista promeni.
+      resize={{ scroll: false }}
       style={{ position: "absolute", inset: 0 }}
+      onCreated={({ gl }) => {
+        gl.localClippingEnabled = true;
+      }}
       aria-hidden
     >
       <directionalLight position={[6, 8, 5]} intensity={1.1} />

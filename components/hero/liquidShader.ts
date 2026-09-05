@@ -1,6 +1,6 @@
 /**
  * „Tečni lak" — fragment shader hero sekcije (ADR-005, docs/BRAND.md §6,
- * data/design-dna.json → visual_effects.shader_effects).
+ * data/design-dna.json → visual_effects.shader_effects; razlivanje: spec 13 → E).
  *
  * Tri sloja simplex fBm šuma sa domenskim iskrivljenjem u dva prolaza daju
  * površinu tečnosti; preko nje lenjo klizi jedan specular pojas koji se čita kao
@@ -29,7 +29,10 @@ export const FRAGMENT_SHADER = /* glsl */ `
   uniform float uTime;
   uniform vec2  uPointer;     // -1..1, već ulerpovan na CPU strani
   uniform float uScroll;      // 0..1, izlazak heroja iz kadra (dubina)
-  uniform float uPour;        // 0..1, razlivanje minta gore-desno → dole-levo (spec 12 C)
+  uniform float uPour;        // 0..1, radijalno razlivanje uhvaćene boje (spec 13 E)
+  uniform vec3  uPourColor;   // uhvaćena boja tečnosti (THREE.Color, linearni prostor)
+  uniform vec2  uPourOrigin;  // uv tačka iz koje kreće razlivanje (y na gore)
+  uniform float uPourMax;     // najveće rastojanje od ishodišta do ugla kadra (uv, aspect-ispravljeno)
   uniform vec3  uPalette[4];
   uniform float uReduced;     // 1 = bez kretanja (rezerva; mi tada i ne montiramo Canvas)
   uniform vec2  uResolution;
@@ -122,29 +125,33 @@ export const FRAGMENT_SHADER = /* glsl */ `
     col = mix(col, uPalette[3], edge * 0.30);
 
     /*
-     * Razlivanje (spec 12 → C): dok se bočica naginje, mint FRONT kreće iz gornjeg desnog
-     * ugla ka donjem levom. diag je rastojanje po dijagonali od tog ugla (0 tamo, ~1.41
-     * u suprotnom); ivica fronta je iskrivljena istim warp poljem r, pa nije linija nego
-     * lak koji curi. Na uPour = 0 front stoji van kadra (ništa ne curi), na 1 prekriva i
-     * suprotni ugao.
+     * Razlivanje (spec 13 → E): RADIJALNI front iz tačke gde je kap napustila kadar
+     * (uPourOrigin). d je rastojanje u uv prostoru ispravljenom za aspect (front ostaje krug i
+     * na širokom monitoru); ivica je iskrivljena istim warp poljem r, pa nije kružnica nego lak
+     * koji se širi. Na uPour = 0 front je 0.3 IZA ishodišta (ni warp ga ne uvlači u kadar), na 1
+     * je 0.35 iza najdaljeg ugla — isti brojevi kao pourFront u lib/heroChoreography.ts.
      */
-    float diag = dot(vec2(1.0) - vUv, vec2(0.7071));
-    float front = uPour * 2.3 - 0.3;
-    float pour = 1.0 - smoothstep(front - 0.45, front + 0.05, diag + 0.18 * r.x);
+    float d = length((vUv - uPourOrigin) * vec2(aspect, 1.0));
+    float front = uPour * (uPourMax + 0.65) - 0.3;
+    float pour = 1.0 - smoothstep(front - 0.14, front + 0.03, d + 0.15 * r.x);
 
     /*
      * Čitljiva površina ispod copy-ja: široki meki veo boje papira, pomeren ulevo,
      * tamo gde stoje wordmark, naslov i dugmad. Bez njega naslov sedi na šarenoj
      * podlozi i kontrast padne ispod AA. Desna polovina kadra nema veo — tamo mint
-     * ostaje pun. Kad se lak razlije (uPour → 1) copy je već iznad kadra, pa veo popušta.
+     * ostaje pun. Kad se lak razlije (uPour → 1) copy odlazi, pa veo popušta; ink
+     * (--hero-ink) i DOM scrim tada preuzimaju kontrast (spec E).
      */
-    vec2 d = (vUv - vec2(0.30, 0.46)) / vec2(0.74, 0.64);
-    float veil = 1.0 - smoothstep(0.0, 1.0, length(d));
+    vec2 d2 = (vUv - vec2(0.30, 0.46)) / vec2(0.74, 0.64);
+    float veil = 1.0 - smoothstep(0.0, 1.0, length(d2));
     col = mix(col, uPalette[3], veil * 0.50 * (1.0 - 0.8 * pour));
 
-    // Razliveni lak: zasićen mint preko svega što je front prešao, sa mokrim odsjajem.
-    col = mix(col, uPalette[0], pour * 0.85);
-    col += spec * 0.35 * pour * warp;
+    // Razlivena boja: uhvaćena boja sa 25 % minta (brend ne nestaje), sa mokrim odsjajem —
+    // ali odsjaj ispod copy-ja prigušen: svetle pruge preko tamnog laka obaraju kontrast
+    // svetlog teksta ispod AA (mereno u koraku 13).
+    vec3 pourCol = mix(uPourColor, uPalette[0], 0.25);
+    col = mix(col, pourCol, pour * 0.88);
+    col += spec * 0.35 * pour * warp * (1.0 - 0.75 * veil);
 
     // Završni lift (linearni prostor, pre colorspace_fragment): zasićenost pa kontrast,
     // da mint i rose izađu iz skoro-belog. Paleta je inače po konstrukciji izbeljena.

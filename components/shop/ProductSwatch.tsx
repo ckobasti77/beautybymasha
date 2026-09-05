@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import type { Finish } from "@/lib/products";
 import { TEXTURED_FINISHES, swatchStyle } from "@/lib/swatch";
 
@@ -16,6 +16,8 @@ import { TEXTURED_FINISHES, swatchStyle } from "@/lib/swatch";
  * `children` je opciona fotografija proizvoda koja se na hover crossfade-uje preko
  * kapi (docs/BRAND.md §7) — seče se na oblik kapi i ostaje ispod gloss sweep-a.
  * Kontejner mora da nosi klasu `group`: sweep, podizanje i senka slušaju `.group:hover`.
+ *
+ * `ref` (React 19) daje spoljni `.sw` span — hero kap mu na svaki tik ciklusa piše `--sw`.
  */
 export function ProductSwatch({
   hex,
@@ -23,16 +25,18 @@ export function ProductSwatch({
   size,
   className,
   children,
+  ref,
 }: {
   hex: string;
   finish: Finish;
   size?: number;
   className?: string;
   children?: ReactNode;
+  ref?: Ref<HTMLSpanElement>;
 }) {
   const style = { ...swatchStyle(hex), ...(size !== undefined ? { width: size } : {}) } as CSSProperties;
   return (
-    <span className={["sw", className].filter(Boolean).join(" ")} style={style} aria-hidden>
+    <span ref={ref} className={["sw", className].filter(Boolean).join(" ")} style={style} aria-hidden>
       <span className="sw-shadow" />
       <span className="sw-drop swatch-gloss" data-finish={finish}>
         {TEXTURED_FINISHES.has(finish) ? <span className="sw-tex" /> : null}

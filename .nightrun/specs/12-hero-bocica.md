@@ -6,7 +6,10 @@ Korak 08 je napravio PROCEDURALNU bocicu (`components/three/bottleGeometry.ts`,
 rotaciono simetricna, kao parfem. Bocica laka NIJE okrugla: zaobljeno kvadratno telo,
 tanak vrat, zdepast zatvarac. Na 62% visine heroja ta razlika se vidi.
 
-## MODEL IZ BLENDERA — headless, bez interfejsa, bez MCP-a
+## MODEL IZ BLENDERA
+> NAPOMENA (korak 13): metod je BLENDER MCP (Blender otvoren, add-on server 9876), vidi
+> `.nightrun/specs/13-hero-zona.md` sekcija I. Headless `blender -b` je samo fallback.
+> Geometrija i budzet ispod ostaju merodavni.
 Napravi `scripts/bottle.py` (bpy) i pokreni ga:
   Windows: `& "C:\Program Files\Blender Foundation\Blender *\blender.exe" -b -P scripts/bottle.py`
   (nadji tacnu putanju sa `Get-ChildItem "C:\Program Files\Blender Foundation"`; ako

@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 /**
  * Omotač sekcije: sekcijski ritam iz `globals.css` (`section-pad`), maksimalna širina
- * sadržaja i `scroll-mt` da lepljiva navigacija ne pojede naslov kad se skoči na sidro.
+ * sadržaja. Odmak od lepljive navigacije pri skoku na sidro daje globalno pravilo
+ * `:is(section, footer)[id] { scroll-margin-top }` (globals.css, `--nav-h`).
  *
  * Bez ijedne animacije — ulaze rade `Reveal` (kontejneri) i site-wide text-reveal (reči).
  */
@@ -20,7 +21,7 @@ export function Section({
 }) {
   const bg = tone === "wash" ? "bg-tint-wash" : tone === "sunken" ? "bg-bg-sunken" : "bg-bg";
   return (
-    <section id={id} className={["section-pad scroll-mt-24", bg, className].filter(Boolean).join(" ")}>
+    <section id={id} className={["section-pad", bg, className].filter(Boolean).join(" ")}>
       <div className="mx-auto w-full max-w-content px-5 md:px-8">{children}</div>
     </section>
   );

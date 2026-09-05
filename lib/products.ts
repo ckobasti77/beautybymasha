@@ -142,6 +142,18 @@ export function productBySlug(slug: string): Product | undefined {
   return all.find((p) => p.slug === slug);
 }
 
+/**
+ * Hex boje po slug-ovima, redom (hero ciklus boja, spec 13 → D). Zove se na SERVERU
+ * (`app/page.tsx`) da katalog ne uđe u klijentski JS; nepoznat slug obara build odmah.
+ */
+export function hexesForSlugs(slugs: readonly string[]): string[] {
+  return slugs.map((slug) => {
+    const p = productBySlug(slug);
+    assert(p, `hexesForSlugs: nepoznat slug "${slug}"`);
+    return p.hex;
+  });
+}
+
 export function productsByCategory(category: ProductCategoryKey): readonly Product[] {
   return all.filter((p) => p.category === category);
 }

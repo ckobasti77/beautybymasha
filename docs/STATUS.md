@@ -1,8 +1,198 @@
 # STATUS
 
+Stanje posle koraka **13 — hero zona sa zadržavanjem, boje laka, kap i razlivanje, navigacija
+uvek ispred + Instagram nav** (ispod: korak 12, pa 11, pa zatečeno stanje posle koraka 08).
+Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 13 — šta je dodato
+
+### Hero zona (`components/hero/Hero.tsx`, `lib/heroChoreography.ts`, `lib/logoTravel.ts`)
+
+- Sekcija je **zona od 170 vh** (mobilni 130 vh, uz `prefers-reduced-motion` 100 vh) sa
+  `position: sticky` stage-om od 100 vh. Do `HOLD_END = (H − vh) / H` (izmereno: 0.41 na 1440,
+  0.23 na 390) hero **fizički miruje** — CSS, ne pin; `.pin-spacer` je 0, nema lock-a skrola
+  (jedini lock na sajtu ostaje otvoren mobilni meni), nema `preventDefault` na wheel/touch.
+- **Jedan ScrollTrigger** (`top top → bottom top`, `scrub`) daje `p`; sve je čista funkcija
+  tog broja (`lib/heroChoreography.ts`, 26 testova): logo put 0.04–0.30 (expo.out) + crossfade
+  i frost 0.30–0.36, nagib 0.06–0.30, kap raste 0.18–0.30 i pada 0.30–0.40, razlivanje
+  0.36–0.78, copy kontejner 0.55–0.85 (CTA prestaju da hvataju klik od 0.55, `hidden` od 0.85),
+  bočica izlazi 0.60–1, stage zaostaje HOLD_END–1 do +40 % svoje visine ispod `.hero-overlap`
+  (neprovidan omotač sledećih sekcija, zaobljen vrh 28 px, senka nagore).
+- Merenje (wordmark relativno na stage, slot relativno na traku, HOLD_END iz `offsetHeight`)
+  ide u `onRefreshInit`; `apply(p)` se zove i iz `onRefresh` (na p = 0 `onUpdate` ne okida).
+  DOM se vozi kroz quickSetter-e PO SVOJSTVU; ono što se retko menja (visibility,
+  pointer-events, `hidden`) piše se samo na promenu. Reload usred zone daje isto stanje.
+- `window.__bbmHero` (samo dev) → `{ p, pour, color, captured }`.
+
+### Boje laka (`lib/heroColors.ts`, `lib/products.ts` → `hexesForSlugs`, `app/page.tsx`)
+
+- Pet bestselera, naizmenično ORLY / Entity: Vintage `#6ECFC0` → Kaleidoscope Eyes `#E88BC0`
+  → Red Rum Rouge `#C61F35` → Modern Minimalist `#D9C3AC` → Crawford's Wine `#7B2233` → mint.
+  Hex se čita na serveru u `app/page.tsx` (katalog ne ulazi u klijentski JS), test u
+  `lib/data.test.ts` pada ako slug nestane iz kataloga.
+- Ciklus (hold 3,5 s, crossfade 1 s sine) vozi `gsap.ticker` u `Hero.tsx` za sve tri grane:
+  3D bočica (≥ 1024), shader bez bočice (769–1023) i CSS kap (≤ 1023). Pauza kad je tab
+  sakriven; `prefers-reduced-motion` = statična boja.
+- Prvi pomak skrola (p > 0.01) **hvata** boju koja se vidi (i usred prelaza — tačno to);
+  p < 0.01 pušta ciklus dalje od tog mesta. Uhvaćena boja ide u `sessionStorage`, pa reload
+  usred zone daje istu boju (bez toga bi ciklus krenuo od minta).
+- Three strana (`components/three/liquidColor.ts`) pretvara hex par u `THREE.Color` kroz
+  ColorManagement, sa kešom po hex-u; `HeroDrivers` nosi samo brojeve i stringove.
+
+### Kap, razlivanje, nivo tečnosti (`liquidShader.ts`, `HeroBottle.tsx`, `BottleModel.tsx`, `liquidLevel.ts`, `bottleGeometry.ts`)
+
+- Kap: sfera (y × 1,3) u boji tečnosti raste na **vrhu zatvarača** 0.18–0.30 (vrh vrata je
+  ispod zatvarača — tamo ne bi ni virila), otkači se i pada do NDC y = −1,15. Mesh je uvek
+  nacrtan (skala ~0 kad je nema) da se program kompajlira na prvom frejmu, ne usred skrola.
+- Shader: stari dijagonalni front je uklonjen; **radijalni front** iz `uPourOrigin` (x vrha
+  zatvarača iz poze koja zavisi samo od p, bez lebdenja/pointera — reload daje isti centar),
+  ivica iskrivljena warp poljem, na `uPour = 0` front je 0,3 iza ishodišta (bez mrlje u miru),
+  na 1 0,35 iza najdaljeg ugla. Boja = 75 % uhvaćena + 25 % mint. Odsjaj ispod copy kolone je
+  prigušen (svetle pruge preko tamnog laka obarale su kontrast svetlog teksta ispod AA).
+- **Nivo tečnosti = svetska horizontalna clipping ravan** (`gl.localClippingEnabled`,
+  `Liquid` mesh je sada puna unutrašnjost stakla): dok se bočica naginje, površina ostaje
+  ravna. Zapljuskivanje: prigušena opruga (~1,2 Hz, damping 0,9, ±8°) iz ugaone brzine.
+  `DoubleSide` + `onBeforeCompile` koji zadnjim stranama podmeće normalu ravni — bez toga
+  presek izgleda kao šuplja činija. Ista ravan i na zidu shopa (`BottleScene`).
+- Gamifikacija: hover kursor + skala 1,03, klik/tap wobble (±6°, tri puta, 0,7 s) +
+  zapljuskivanje. Raycast ide na nevidljivu kapsulu, ne na 12k trouglova.
+- Ink: `--hero-ink` ide na papir kad razlivena TAMNA boja pokrije centar copy kolone
+  (kontrastno pravilo, vidi odluke), scrim menja papirni veo za ink veo (300 ms). CTA
+  zadržavaju svoje tokene.
+
+### Navigacija (`components/site/SiteNavClient.tsx`, `lib/heroProgress.ts`, `app/globals.css`)
+
+- **Z-skala:** nav `z-[100]`, `Sheet` i lightbox galerije `z-[110]` (lightbox sada ide kroz
+  portal u `body`), toast `z-[120]`, skip-link `z-[130]`; ostalo ≤ 40 (`grep -rn "z-\[\|z-50"
+  components app` → samo ovi + AdminNav z-30, StickyBar/admin tabovi z-20, ShopHighlights z-10).
+  `<nav>` je direktno pod `<body>`, lanac predaka bez transform/filter/backdrop/contain.
+- **Instagram nav:** sakrij na dole (≥ 24 px, scrollY > 120, hero van kadra, meni zatvoren,
+  fokus van nav-a), pokaži na gore (≥ 4 px), blizu vrha, na otvaranje menija, na `focusin`,
+  dok je hero u kadru. Samo `transform` na UNUTRAŠNJOJ traci (`.nav-bar[data-hidden]`,
+  320 / 240 ms) — ne na `<nav>`, jer je panel menija `fixed` unutar njega. Bez React state-a
+  po skrolu (atribut). Skokovi > 200 px (reload, deep link) se ne računaju kao skrol.
+- `lib/heroProgress.ts`: store `{ p, color }` iz `onUpdate`/`onRefresh`; nav čita BOOLEAN
+  snapshot-e (frost od p ≥ 0.30, senka od p ≥ 1) kroz `useSyncExternalStore`. IO za frost
+  (`useHeroPassed`) je uklonjen. Strane bez heroja i dalje šalju `alwaysSolid`.
+- `.nav-frost` = blagi glass: 72 % podloge, `blur(14px) saturate(1.4)`, hairline, unutrašnji
+  highlight; tranzicija hvata i backdrop-filter da glass ne „pukne" preko wordmark-a u slotu.
+- `--nav-h` (64 / 80 px) u `:root`, traka `h-[var(--nav-h)]`, `:is(section, footer)[id]`
+  ima `scroll-margin-top: calc(var(--nav-h) + 8px)` (`#kontakt` je footer); `Section` više
+  nema `scroll-mt-24`, `StickyBar` cenovnika koristi `top-[var(--nav-h)]`.
+
+### Mobilni (`components/hero/HeroDrop.tsx`)
+
+- WebGL ≤ 768 ostaje isključen (ADR-005). Bez bočice (≤ 1023 px, i preko shadera na 769–1023):
+  velika `ProductSwatch` kap (80 / 96 px) desno od naslova ciklira iste boje (`--sw`), hvata
+  boju na prvi skrol, pada do dna stage-a 0.30–0.40 pa se „prosipa" 0.36–0.78 kao unapred
+  nacrtan krug (`transform: scale`, bez repaint-a gradijenta po frejmu). Montira se posle
+  hidratacije (media query), apsolutno — CLS 0. `ProductSwatch` je dobio `ref` prop.
+- Ispod 400 px logo se ne vozi (nav pokazuje mark): zamena na 0.30. Reduced motion: zona
+  100 vh, hold 0, bez laga, zamena na 0.50, bez pada i prosipanja.
+
+### Odluke koje odstupaju od slova speca
+
+| # | Odluka | Zašto |
+| --- | --- | --- |
+| 1 | `--nav-h` = 64 / 80 px, ne 72 / 60 | korak 12 je zamrznuo visinu trake (h-16 / md:h-20); logo put se meri živo |
+| 2 | hide/show transform na `.nav-bar`, ne na `<nav>` | panel menija je `fixed` unutar `<nav>`; transform na pretku mu postaje containing block |
+| 3 | ink po KONTRASTU, ne po luminanci 0.45; tokeni `--ink`/`--paper`, ne `--fg`/`--bg` | luminanca `#E88BC0` je 0.39 → spec bi dao beo tekst na roze sa 2,4:1; hero je svetao i u tamnoj temi |
+| 4 | ink se prebacuje kad front pokrije centar copy kolone, ne na `uPour ≥ .35` | na .35 front još nije stigao do teksta |
+| 5 | copy izlazi kao KONTEJNER, na p ≥ 0.85 `display: none` | opacity tekstualnih čvorova drži reveal sistem; provera iz MOTION.md ostaje poštena |
+| 6 | DOM se vozi iz `onUpdate` kroz quickSetter-e, ne tweenima sa `yPercent` iz 12 | stage je sticky — wordmark tokom holda ne putuje sa stranom; posle holda pomeraj je čista funkcija p |
+| 7 | ciklus boja u `Hero.tsx`, ne u canvasu; kap prikazana i na 769–1023 | isti motor za tri grane; hvatanje boje vidljivo i bez bočice |
+| 8 | omotač sledećih sekcija je `relative` BEZ `z-10`; lightbox galerije kroz portal | `z-10` pravi stacking context koji zarobi `fixed z-[110]` dijalog ispod nav-a |
+| 9 | stage `100vh`, ne `100dvh` | sekcija je u vh, HOLD_END ostaje tačno 70/170; dvh bi menjao visinu dok se URL traka sklapa |
+| 10 | uhvaćena boja u `sessionStorage` | reload usred zone daje istu boju kao skrol do te tačke |
+| 11 | ScrollTrigger nav-a ima `end` = 8 × maxScroll, ne `"max"` | `"max"` se meri pri stvaranju, strana posle raste (loyalty traka), pa se na samom dnu traka ne bi vratila |
+| 12 | R3F `resize={{ scroll: false }}` na oba canvasa | R3F prati položaj omotača na skrol → `gl.setSize` + re-render scene svakog frejma dok se stage pomera (profil: 511 ms setSize u 4 s, p95 21 ms) |
+| 13 | GLB se čita malim GLB + Draco čitačem, ne drei `useGLTF` | `useGLTF` = +21,9 KB gzip na lenjem chunku, budžet je +15 KB; ovako +4,4 KB, isti Draco dekoder |
+
+### GLB iz Blendera — urađen kroz Blender MCP (`scripts/bottle.py`, `public/models/bocica.glb`)
+
+- Blender 5.1.1 otvoren, add-on server na localhost:9876; sav bpy kod je izvršen kroz
+  `execute_blender_code` i sačuvan kao `scripts/bottle.py` (`build()` → `preview_render()` →
+  `export_glb()`; radi i headless). Geometrija po specu 12: zaobljeni kvadrat 3,2 × 3,2 r 0,9,
+  telo 5,2, vrat d 1,1 / h 0,8, Solidify 0,12, Subdivision 2; zatvarač d 1,9 → 1,7, h 3,6,
+  bevel 0,15, 10 žlebova; ukupno 9,48 (tačno `TOTAL_HEIGHT` iz koda, da anker kapi, nivo i
+  raspored ostanu). `Liquid` = puna unutrašnjost; nivo daje clipping ravan (F).
+- Silueta proverena Eevee renderom u fajl (snimak viewporta/prozora kroz MCP je bio crn —
+  prozor Blendera je zaklonjen; zapisano u memoriji). Modifikatori se primenjuju pre exporta da
+  primitivi zadrže imena.
+- `gltf-transform inspect`: **69,6 KB**, Glass 29.952 + Liquid 3.968 + Cap 2.240 = **36.160
+  trouglova** (≤ 40k), `KHR_draco_mesh_compression`, granice x/z ±1,6, y 0–9,48.
+- Učitavanje BEZ drei `useGLTF`: `components/three/bottleGlb.ts` čita GLB kontejner i
+  Draco primitive kroz `DRACOLoader` (dekoder u `public/draco/`), React `use()` + Suspense,
+  fallback na proceduralnu bočicu (i kroz error boundary). Razlog je budžet J.11: drei
+  `useGLTF` je izmereno +21,9 KB gzip na lenjem chunku (GLTFLoader 13,4 + Draco 3,1 +
+  suspend-react), ovako **+4,4 KB**. `preloadBottleGlb()` = `useGLTF.preload`. Na mreži:
+  GLB 58,6 KB + Draco wasm 63,5 KB + wrapper 11,7 KB (gzip), samo ≥ 769 px.
+- Prvi headless pokušaj (pre MCP-a) je bio dobar za budžet fajla, ali je u heroju pokazao bag:
+  `HeroBottle` je delio jedan ref između svoje grupe i grupe modela, pa se posle Suspense
+  zamene transform primenjivao dvaput (bočica 2× udesno) — sada model ima svoj ref.
+
+### Provera
+
+```
+npm run typecheck   ✓
+npm run lint        ✓  (nula upozorenja)
+npm test            ✓  191 testova, 13 fajlova (+22: koreografija zone, put loga, boje/ink, store, katalog)
+npm run build       ✓  83 strana, tri builda zaredom bez Windows flake-a 0xC0000374 (pre GLB-a, sa drei, sa čitačem)
+```
+
+Bundle (`scripts/measure-bundle.mjs` + gzip lenjog three chunka, pre → posle):
+
+| Šta | Pre (korak 12) | Posle | Razlika |
+| --- | --- | --- | --- |
+| `/` početni JS | 323,3 KB | 326,8 KB | **+3,5 KB** (granica +5 KB: store, boje, hero DOM koreografija, IG nav) |
+| `/shop` početni JS | 299,2 KB | 300,0 KB | **+0,8 KB** |
+| lenji WebGL chunk (three + hero + DRACOLoader + GLB čitač) | 232,2 KB | 236,0 KB | +3,8 KB |
+| lenji hero chunk | u zbiru 237,0 KB iz koraka 12 | 5,4 KB | ukupno lenjo 241,4 KB = **+4,4 KB** (granica +15 KB; sa drei `useGLTF` bilo bi +21,9) |
+
+U browseru (Playwright MCP, `page.mouse.wheel`, dev server http://localhost:3001 — pripada
+paralelnoj sesiji, nije gašen; Chromium na ekranu od 146 Hz, `page.bringToFront()` pre merenja):
+
+| Provera J | 1440×900 | 390×844 |
+| --- | --- | --- |
+| 1. `elementFromPoint` u centru svakog nav linka (scrollY 0 / 200 / 900 / dno posle 1 pomaka gore) | 11/11 u `<nav>` na sva 4 mesta; lanac predaka `BODY, HTML` bez transform/filter/backdrop/contain | mark 44 px, linkovi u meniju |
+| 2. `.pin-spacer`; `body.overflow`; `html.lenis-stopped` tokom zone | 0; `clip visible`; nema | 0; isto |
+| 3. Hold: skrol 0 → 40 vh | stage top 0 i copy top 434,4 px nepromenjeni do y 362 (p 0.236); reload na y 539 (p 0.352) → isti p, ista uhvaćena boja, nav logo 0.87 pre i posle | stage top 0 do y 247 (p 0.225 = HOLD_END 30/130) |
+| 4. Nav IG van heroja: 3 × 200 px dole → sakriven; 40 px gore → vidljiv | atribut 137 ms, `translateY(−81px)` za 200 ms; prikaz atribut 32 ms, na 0 za 188 ms; unutar zone (p 0.56) nikad sakriven; fokus (Tab) vraća traku; na samom dnu 45 px gore vraća | sakriven `−65px`, vraćen; otvoren meni: traka vidljiva, panel neprovidan `rgb(250,246,241)`, 390 px |
+| 5. Logo / frost | p 0: nav logo 0, wordmark (144, 209, 540); p 0.25: wordmark na slotu (144, 26, 90 vs slot 144, 25, 88); frost `none` na 0.288, `blur(14px) saturate(1.4)` na 0.308; p 0.33: wordmark 0.48 / logo 0.52; p 0.36: logo 0.97; p 0.5: wordmark `hidden` | zamena na 0.308: logo 1, wordmark `hidden`, frost od 0.31 |
+| 6. `window.__bbmHero` | p 0 → pour 0; pour 0.27 @0.50, 0.61 @0.60, 1 @0.78; `captured` = boja u trenutku hvatanja; nazad na 0 → `captured` null, ciklus nastavlja od iste boje | isto, `--pour-color #C498BA` (roze + mint) |
+| 7. Ink / kontrast h1 (kompozitni screenshot, percentili pozadine) | wine → `data-ink=light`, tekst `rgb(250,246,241)`, kontrast 7,7 / 6,6 / 6,0 / 4,6 (p 0.62, pour 0.67); mint/nude → taman, 10,4–13,3 | roze → taman |
+| 8. Kap | screenshot p 0.27: kap na vrhu zatvarača; p 0.36: kap pri dnu, front kreće iz te tačke; u miru nema mrlje (`pourFront(0) < 0`) | kap pada y 4 → 389 (0.31–0.38), `hidden` od 0.40, krug prosipanja scale = pour |
+| 9. Reveal na dnu (posle 4,3 s) | `pending` 0 / sakriven copy 0 / `.reveal-word` 0 / `data-reveal-state=pending` 0 | isto |
+| 10. 390 | — | `scrollWidth === clientWidth` (375); kap ciklira (mint → roze za 4,6 s); deep link `/#zakazivanje?usluga=manikir` → vrh sekcije 72 px ≥ `--nav-h` 64 px, traka vidljiva |
+| 11. Perf: skrol kroz celu zonu (1530 px, 5,5 s, 146 Hz) | proceduralna: 637 / 672 frejmova, medijana 7 ms, **p95 14 ms**, najduži 27,9 / 20,7 ms, 0 preko 33 ms; **GLB (36k trouglova): p95 14 ms**, najduži 34,8 / 27,9 ms, 1 / 0 preko 33 ms (dva prolaza) | — |
+| GLB | `bocica.glb` + Draco stižu, bočica se zamenjuje bez rupe (Suspense fallback = proceduralna), hover kursor radi, nivo ravan pri nagibu (screenshot) | — |
+| 12. Reduced motion (1440) | zona 900 = stage, canvas 0, zamena loga na 0.50 (0 @0.45 → 1 @0.55), stage bez laga, boja statična | — |
+| Konzola | 0 grešaka; jedino upozorenje `THREE.Clock` iz R3F-a (od ranije) | 0 grešaka |
+
+`/shop` na 1440: 1 canvas, frost, logo 1, ista GLB bočica sa ravnim nivoom dok se vrti.
+
+Perf pre popravki (isti prolaz): faza izlaska p95 20,7 ms, 7–8 frejmova preko 33 ms. CDP
+profil: `WebGLRenderer.setSize` 511 ms u 4 s (R3F pratio položaj omotača na skrol) i
+`quickSetter(el, "css")` koji je čitao computed style po frejmu — oba uklonjena (odluke 6, 12);
+kompajliranje programa kapi na p 0.18 (42 ms) rešeno stalno nacrtanom kapi skale ~0.
+
+### Šta čeka / napomene
+
+| Šta | Zašto |
+| --- | --- |
+| **[POTVRDITI]** pet boja ciklusa (`lib/heroColors.ts` → `HERO_COLOR_SLUGS`, `docs/BRIEF.md` §8 #9) | naš predlog bestselera; Ivana bira |
+| **[POTVRDITI]** 3D bočica na telefonu (`docs/BRIEF.md` §8 #10, ADR-005) | sada nikad ispod 769 px — baterija, srednji telefoni; umesto nje kap laka |
+| `data/site.json` → oba lokala isti telefon | iz koraka 12, i dalje **[POTVRDITI]** |
+| Traka cenovnika (`StickyBar`) stoji na `--nav-h` i kad je nav sakriven | iznad nje se tada vidi sadržaj strane, ne prazan pojas; ako smeta — pratiti `data-hidden` |
+| Klik na sidro u nav-u (Lenis) sakrije traku dok skroluje dole | Instagram ponašanje; naslov ipak sleće 8 px ispod mesta trake (`scroll-margin-top`) |
+| Boja razlivanja = 75 % uhvaćena + 25 % mint (spec E) | tamne boje (wine) u linearnom prostoru ispadnu mutnije; ako Ivana hoće čistiju boju, jedan broj u `liquidShader.ts` i `POUR_MINT_SHARE` |
+| Naslov na ≤ 1023 px ima `max-lg:pr-24` zbog kapi | na 390 px lomi se u 4 reda |
+| `docs/MOTION.md` → „Hero v2", „Z-skala", „Navigacija" | prepisano; stari „Hero — scroll scenario (korak 12)" uklonjen |
+
+---
+
 Stanje posle koraka **12 — 3D bočica u heroju, logo koji putuje u navigaciju, nova
 navigacija** (ispod: korak 11, pa zatečeno stanje posle koraka 08).
-Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Korak 12 — šta je dodato
 

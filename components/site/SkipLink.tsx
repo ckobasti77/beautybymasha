@@ -15,7 +15,7 @@ export function SkipLink() {
   return (
     <a
       href="#sadrzaj"
-      className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-pill focus:bg-fg focus:px-5 focus:text-bg focus:no-underline focus-ring"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[130] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-pill focus:bg-fg focus:px-5 focus:text-bg focus:no-underline focus-ring"
     >
       Preskoči na sadržaj
     </a>

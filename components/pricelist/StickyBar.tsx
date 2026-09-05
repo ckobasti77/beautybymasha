@@ -61,7 +61,7 @@ export function StickyBar({
     <div
       ref={barRef}
       data-reveal="off"
-      className="sticky top-16 z-20 -mx-5 flex flex-col gap-3 bg-bg/90 px-5 py-3 backdrop-blur md:top-20 md:-mx-8 md:px-8"
+      className="sticky top-[var(--nav-h)] z-20 -mx-5 flex flex-col gap-3 bg-bg/90 px-5 py-3 backdrop-blur md:-mx-8 md:px-8"
     >
       <form role="search" onSubmit={(e) => e.preventDefault()} className="flex items-center gap-3">
         <Input

@@ -29,8 +29,18 @@ export const BODY_HEIGHT = 6.0;
 /** Ukupna visina modela sa zatvaračem, u jedinicama. */
 export const TOTAL_HEIGHT = 9.48;
 
-/** Nivo tečnosti — 80% visine tela (docs/3D-ASSETS.md). */
-const LIQUID_TOP = BODY_HEIGHT * 0.8;
+/** Vrh vrata (zatvorena pločica) — tu se hvata kap u heroju (spec 13 → E). */
+export const NECK_TOP_Y = 5.99;
+
+/**
+ * Nivo tečnosti — 78 % visine tela (spec 13 → F). Od koraka 13 nivo NE daje geometrija:
+ * mesh `Liquid` je puna unutrašnjost stakla, a nivo seče svetska clipping ravan
+ * (`liquidLevel.ts`), pa površina ostaje ravna dok se bočica naginje.
+ */
+export const LIQUID_LEVEL_RATIO = 0.78;
+
+/** Do koje visine ide mesh tečnosti: tik ispod usnika, da se ne poklopi sa zatvaranjem vrha. */
+const LIQUID_MESH_TOP = 5.9;
 
 /** Gde presek prestaje da bude kvadratast i postaje krug (rame → vrat). */
 const SQUIRCLE_FROM_Y = 4.2;
@@ -117,20 +127,20 @@ function glassProfile(): Point[] {
 }
 
 /**
- * Profil tečnosti: isti bok, uvučen za debljinu zida, odsečen na `LIQUID_TOP`
- * i zatvoren ravnom površinom. Dno počinje malo iznad y=0 da se ne poklopi sa
- * staklom i ne zatrepće (z-fighting).
+ * Profil tečnosti: PUNA unutrašnjost — isti bok, uvučen za debljinu zida, sve do vrata
+ * (`LIQUID_MESH_TOP`) i zatvoren. Nivo daje clipping ravan (liquidLevel.ts), ne profil.
+ * Dno počinje malo iznad y=0 da se ne poklopi sa staklom i ne zatrepće (z-fighting).
  */
 function liquidProfile(): Point[] {
-  const source = glassProfile().filter(([, y]) => y > 0 && y < LIQUID_TOP);
+  const source = glassProfile().filter(([, y]) => y > 0 && y < LIQUID_MESH_TOP);
   const inset: Point[] = source.map(([r, y]) => [Math.max(0.02, r - WALL), y]);
-  const topRadius = inset.length > 0 ? inset[inset.length - 1][0] : 1.2;
+  const topRadius = inset.length > 0 ? inset[inset.length - 1][0] : 0.35;
   return [
     [0, WALL],
     [1.24 - WALL, WALL],
     ...inset.filter(([, y]) => y > WALL),
-    [topRadius, LIQUID_TOP],
-    [0, LIQUID_TOP],
+    [topRadius, LIQUID_MESH_TOP],
+    [0, LIQUID_MESH_TOP],
   ];
 }
 

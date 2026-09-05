@@ -75,7 +75,16 @@
   --dur-normal: 300ms;
   --dur-macro: 600ms;
 
+  /* visina trake navigacije — `SiteNavClient` je nosi, sidra i lepljive trake računaju od nje */
+  --nav-h: 64px;
+
   color-scheme: light;
+}
+
+@media (width >= 768px) {
+  :root {
+    --nav-h: 80px;
+  }
 }
 
 /* tamna tema — toggle u navigaciji; akcent ostaje mint (na tamnom prolazi i kao tekst, 8,5:1) */
@@ -220,6 +229,20 @@ html.lenis body {
 }
 
 /*
+ * Skok na sidro (`/#zakazivanje`, deep link `#zakazivanje?usluga=`, `#kontakt` u footeru)
+ * sleće ispod fiksne trake. Lenis `scrollTo` i nativni `scrollIntoView` oba čitaju
+ * `scroll-margin-top`.
+ */
+:is(section, footer)[id] {
+  scroll-margin-top: calc(var(--nav-h) + 8px);
+}
+
+/* Bez JS-a niko ne vozi opacity nav loga na landingu — neka bude vidljiv. */
+html:not(.js) #nav-logo-slot {
+  opacity: 1;
+}
+
+/*
  * Sistem 2 (components/motion/Reveal.tsx): kontejner je sakriven pre prvog paint-a
  * samo pod `html.js`, a Reveal garantuje da ga vrati (armed → done). Isti ugovor kao
  * hideCss() za tekst. Ne koristiti ovaj atribut ručno.
@@ -332,10 +355,13 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
  * provereno u browseru, korak 12), pa je `glass` do sada bio samo poluprovidna podloga
  * bez blura. Zato je sadržaj na /shop „provirivao" kroz navigaciju.
  *
- * `nav-frost`: traka navigacije kad hero izađe (i na svakoj strani bez heroja) — 82 %
- * podloge teme + blur, linija samo ispod (spec 12 → I). Nosi je unutrašnja traka, ne
- * <nav>: backdrop-filter na pretku bi zarobio `position: fixed` panel mobilnog menija
- * u visinu trake.
+ * `nav-bar` (korak 13, Instagram nav): unutrašnja traka navigacije nosi transform za
+ * sakrivanje (320 ms) / prikaz (240 ms) — NE <nav>: panel mobilnog menija je `fixed`
+ * unutar <nav>-a i transform na pretku bi mu postao containing block. Tranzicija hvata i
+ * backdrop-filter, da glass ne „pukne" preko wordmark-a koji upravo sleće u slot.
+ * `nav-frost`: blagi glass (72 % podloge, blur 14 + saturate, linija ispod, jedan unutrašnji
+ * highlight — liquid-glass „compact control"), na landingu od p ≥ 0.30, inače uvek.
+ * `nav-shadow`: senka tek kad hero izađe iz kadra.
  */
 @layer components {
   .glass {
@@ -345,11 +371,114 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
     backdrop-filter: blur(12px);
   }
 
+  .nav-bar {
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    will-change: transform;
+    transform: translateY(0);
+    transition:
+      transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 300ms var(--ease-in-out-soft),
+      border-color 300ms var(--ease-in-out-soft),
+      box-shadow 300ms var(--ease-in-out-soft),
+      -webkit-backdrop-filter 300ms var(--ease-in-out-soft),
+      backdrop-filter 300ms var(--ease-in-out-soft);
+  }
+  .nav-bar[data-hidden] {
+    transform: translateY(-100%);
+    transition-duration: 320ms, 300ms, 300ms, 300ms, 300ms, 300ms;
+  }
+
   .nav-frost {
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
-    border-bottom: 1px solid var(--line);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border-bottom: 1px solid var(--glass-line);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+  .nav-frost.nav-shadow {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 1px 2px rgba(var(--shadow-ink), 0.06),
+      0 8px 24px -16px rgba(var(--shadow-ink), 0.18);
+  }
+
+  /*
+   * Hero zona (korak 13, docs/MOTION.md → Hero v2).
+   * `hero-overlap`: omotač svega posle heroja — neprovidan, zaobljen vrh i senka nagore preko
+   * stage-a koji zaostaje za stranom. Bez z-index-a (vidi app/page.tsx).
+   * `--hero-ink`: boja copy-ja po kontrastu nad razlivenom bojom (`#hero[data-ink]` postavlja
+   * Hero.tsx). Literalni `--ink`/`--paper`, ne `--fg`/`--bg`: hero je svetao i u tamnoj temi.
+   * `hero-scrim-*`: papirni veo dok je tekst taman, ink veo kad je svetao (HeroScrim.tsx).
+   * `hero-pour`: krug prosipanja DOM kapi (HeroDrop.tsx) — samo `transform: scale`.
+   */
+  .hero-overlap {
+    --overlap-a: 0.14;
+    box-shadow: 0 -24px 60px rgba(var(--shadow-ink), var(--overlap-a));
+  }
+  :root[data-theme="dark"] .hero-overlap {
+    --overlap-a: 0.4;
+  }
+
+  #hero {
+    --hero-ink: var(--ink);
+  }
+  #hero[data-ink="light"] {
+    --hero-ink: var(--paper);
+  }
+  .hero-ink,
+  .hero-ink-80,
+  .hero-ink-70 {
+    color: var(--hero-ink);
+    transition: color 300ms var(--ease-in-out-soft);
+  }
+  .hero-ink-80 {
+    color: color-mix(in srgb, var(--hero-ink) 80%, transparent);
+  }
+  .hero-ink-70 {
+    color: color-mix(in srgb, var(--hero-ink) 70%, transparent);
+  }
+
+  .hero-scrim-paper,
+  .hero-scrim-ink {
+    transition: opacity 300ms var(--ease-in-out-soft);
+  }
+  .hero-scrim-paper {
+    background: radial-gradient(
+      closest-side,
+      rgba(250, 246, 241, 0.55) 0%,
+      rgba(250, 246, 241, 0.32) 45%,
+      rgba(250, 246, 241, 0) 100%
+    );
+  }
+  .hero-scrim-ink {
+    opacity: 0;
+    background: radial-gradient(
+      closest-side,
+      rgba(18, 16, 15, 0.5) 0%,
+      rgba(18, 16, 15, 0.32) 45%,
+      rgba(18, 16, 15, 0) 100%
+    );
+  }
+  #hero[data-ink="light"] .hero-scrim-paper {
+    opacity: 0;
+  }
+  #hero[data-ink="light"] .hero-scrim-ink {
+    opacity: 1;
+  }
+
+  .hero-pour {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    z-index: -5;
+    width: 100vmax;
+    height: 100vmax;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--pour-color, var(--mint)) 0 86%, transparent 100%);
+    transform: translate(-50%, -50%) scale(0);
+    will-change: transform;
+    pointer-events: none;
   }
 }
 
