@@ -27,6 +27,8 @@ Zavrsna provera: typecheck, lint, test, build. Proveri na 390px i 1440px.
 PRE SVEGA - provera prethodnog koraka (najvise 10 minuta na ovo):
 Procitaj docs/STATUS.md ako postoji i pokreni `npm run typecheck` i `npm run lint`.
 Ako je prethodni korak nesto ostavio slomljeno ili nedovrseno, popravi TO prvo.
+Proveri i produkciju: https://beautybymasha-mu.vercel.app - prethodni korak je
+vec deployovan. Ako je prod pao ili prikazuje gresku, to je prioritet nad tvojim zadatkom.
 Jedan prolaz, ne vise. Ako ne mozes da popravis za 10 minuta, upisi u docs/STATUS.md
 sta je slomljeno i nastavi sa svojim zadatkom - ne zaglavljuj se.
 

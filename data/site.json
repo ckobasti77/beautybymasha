@@ -5,9 +5,12 @@
   "lang": "sr-Latn-RS",
   "currency": "RSD",
   "timezone": "Europe/Belgrade",
-  "url": "https://beautybymasha.rs",
-  "urlNote": "[POTVRDITI domen] - do tada Vercel preview URL",
-  "phone": { "display": "064 145 1064", "href": "tel:+381641451064" },
+  "url": "https://beautybymasha-mu.vercel.app",
+  "urlNote": "Vercel produkcija, ziva. Kad kupi domen, menja se ovde i u Vercel podesavanjima. [POTVRDITI domen]",
+  "phone": {
+    "display": "064 145 1064",
+    "href": "tel:+381641451064"
+  },
   "viber": "viber://chat?number=%2B381641451064",
   "whatsapp": "https://wa.me/381641451064",
   "email": "beautybymasha@yahoo.com",
@@ -21,47 +24,151 @@
       "key": "ljubicica",
       "name": "Ljubicica",
       "fullName": "Beauty by Masha - Ljubicica",
-      "address": { "street": "Jurija Gagarina 14z, lok 1", "building": "zgrada Ljubicica", "area": "Belville, Blok 67", "city": "11070 Novi Beograd" },
-      "phone": { "display": "064 145 1064", "href": "tel:+381641451064" },
+      "address": {
+        "street": "Jurija Gagarina 14z, lok 1",
+        "building": "zgrada Ljubicica",
+        "area": "Belville, Blok 67",
+        "city": "11070 Novi Beograd"
+      },
+      "phone": {
+        "display": "064 145 1064",
+        "href": "tel:+381641451064"
+      },
       "mapsQuery": "Beauty by Masha Jurija Gagarina 14z Novi Beograd",
       "hours": [
-        { "days": "Ponedeljak - subota", "time": "09:00 - 21:00" },
-        { "days": "Nedelja", "time": "10:00 - 20:00" }
+        {
+          "days": "Ponedeljak - subota",
+          "time": "09:00 - 21:00"
+        },
+        {
+          "days": "Nedelja",
+          "time": "10:00 - 20:00"
+        }
       ],
       "workWeek": [
-        [{ "start": "10:00", "end": "20:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }]
+        [
+          {
+            "start": "10:00",
+            "end": "20:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ]
       ],
-      "capacity": { "nokti": 3, "kozmetika": 1, "masaza": 1 },
+      "capacity": {
+        "nokti": 3,
+        "kozmetika": 1,
+        "masaza": 1
+      },
       "capacityNote": "[POTVRDITI kod vlasnice] - koliko ljudi istovremeno moze da radi nokte, kozmetiku i masazu u ovom lokalu"
     },
     {
       "key": "mimoza",
       "name": "Mimoza",
       "fullName": "Beauty by Masha - Mimoza",
-      "address": { "street": "Jurija Gagarina 14i, lok 1", "building": "zgrada Mimoza", "area": "Belville, Blok 67", "city": "11070 Novi Beograd" },
-      "phone": { "display": "064 145 1064", "href": "tel:+381641451064" },
+      "address": {
+        "street": "Jurija Gagarina 14i, lok 1",
+        "building": "zgrada Mimoza",
+        "area": "Belville, Blok 67",
+        "city": "11070 Novi Beograd"
+      },
+      "phone": {
+        "display": "064 145 1064",
+        "href": "tel:+381641451064"
+      },
       "mapsQuery": "Beauty by Masha Jurija Gagarina 14i Novi Beograd",
       "hours": [
-        { "days": "Utorak - subota", "time": "09:00 - 21:00" },
-        { "days": "Nedelja", "time": "10:00 - 20:00" },
-        { "days": "Ponedeljak", "time": "zatvoreno" }
+        {
+          "days": "Utorak - subota",
+          "time": "09:00 - 21:00"
+        },
+        {
+          "days": "Nedelja",
+          "time": "10:00 - 20:00"
+        },
+        {
+          "days": "Ponedeljak",
+          "time": "zatvoreno"
+        }
       ],
       "workWeek": [
-        [{ "start": "10:00", "end": "20:00" }],
+        [
+          {
+            "start": "10:00",
+            "end": "20:00"
+          }
+        ],
         [],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }],
-        [{ "start": "09:00", "end": "21:00" }]
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ]
       ],
-      "capacity": { "nokti": 2, "kozmetika": 1, "masaza": 1 },
+      "capacity": {
+        "nokti": 2,
+        "kozmetika": 1,
+        "masaza": 1
+      },
       "capacityNote": "[POTVRDITI kod vlasnice]"
     }
   ],

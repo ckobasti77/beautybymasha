@@ -12,13 +12,18 @@ param(
   [int]$StartAt = 2,
   [int]$StopAt = 8,
   [string]$Model = "opus",
+  [string]$ProdUrl = "https://beautybymasha-mu.vercel.app",
   [int]$StepTimeoutMin = 75,
   [switch]$SkipProbe,
-  [string]$Branch = "nightrun",
+  [string]$Branch = "main",
   [switch]$NoPush
 )
 
-$ErrorActionPreference = "Stop"
+# NE koristiti "Stop": PowerShell tretira SVAKI ispis na stderr iz native komandi
+# (git, npm, npx) kao gresku koja obara skriptu - a git na stderr pise i obicna
+# upozorenja tipa "LF will be replaced by CRLF". Skripta svuda sama proverava
+# $LASTEXITCODE, pa je "Continue" i tacnije i bezbednije za run bez nadzora.
+$ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -30,6 +35,18 @@ $status    = Join-Path $root ".nightrun\STATUS-RUN.md"
 Set-Location $root
 New-Item -ItemType Directory -Force -Path $logDir, $tmpDir | Out-Null
 $startedAt = Get-Date
+
+
+# Sve git komande idu kroz ovo: stderr se guta, vraca se samo izlazni kod.
+function Git-Quiet {
+  param([Parameter(ValueFromRemainingArguments = $true)][string[]]$GitArgs)
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "SilentlyContinue"
+  & git @GitArgs 2>&1 | Out-Null
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
+  return $code
+}
 
 function Say([string]$msg, [string]$color = "Gray") {
   Write-Host ("[{0}] {1}" -f (Get-Date).ToString("HH:mm:ss"), $msg) -ForegroundColor $color
@@ -56,30 +73,64 @@ foreach ($f in @("package.json",".env.local")) {
   if (-not (Test-Path (Join-Path $root $f))) { Say "NEDOSTAJE $f u $root" "Red"; exit 1 }
 }
 if (-not (Test-Path $promptDir)) { Say "NEDOSTAJE $promptDir" "Red"; exit 1 }
+if (-not $env:CONVEX_DEPLOY_KEY) {
+  Say "Nema CONVEX_DEPLOY_KEY - oslanjam se na tvoju lokalnu Convex prijavu." "DarkYellow"
+  Say "Ako convex deploy zatrazi prijavu, deploy ce pasti (run se NE prekida)." "DarkYellow"
+}
 
-git add -A 2>&1 | Out-Null
-git commit -m "nightrun: snapshot pre pokretanja" 2>&1 | Out-Null
-Say ("Bazni commit: " + (git rev-parse --short HEAD)) "DarkGray"
+Git-Quiet add -A | Out-Null
+Git-Quiet commit -m "nightrun: snapshot pre pokretanja" | Out-Null
+Say ("Bazni commit: " + (& git rev-parse --short HEAD 2>$null)) "DarkGray"
 
-# Radimo na zasebnoj grani: main ostaje netaknut, a Vercel za granu pravi PREVIEW
-# deploy umesto produkcije. Produkcija se pusta rucno, posle pregleda.
-git rev-parse --verify $Branch 2>&1 | Out-Null
-if ($LASTEXITCODE -eq 0) { git checkout $Branch 2>&1 | Out-Null }
-else { git checkout -b $Branch 2>&1 | Out-Null }
+# Radimo direktno na main: Vercel odatle gradi PRODUKCIJU. Deploy ide posle svakog
+# koraka, ali SAMO ako su sve provere prosle - polomljen kod nikad ne stize na prod.
+if ((Git-Quiet rev-parse --verify $Branch) -eq 0) { Git-Quiet checkout $Branch | Out-Null }
+else { Git-Quiet checkout -b $Branch | Out-Null }
 Say "Grana: $Branch" "DarkGray"
 
 $hasRemote = $false
-$remotes = git remote 2>&1
+$remotes = & git remote 2>$null
 if ($LASTEXITCODE -eq 0 -and $remotes) { $hasRemote = $true }
 if ($NoPush) { $hasRemote = $false; Say "Push iskljucen (-NoPush)" "DarkGray" }
 elseif ($hasRemote) { Say "Remote nadjen - guram posle svakog uspesnog koraka" "DarkGray" }
 else { Say "Nema remote-a - radim samo lokalno" "DarkGray" }
 
-function Push-Step([string]$Label) {
-  if (-not $hasRemote) { return }
-  git push -u origin $Branch 2>&1 | Out-Null
-  if ($LASTEXITCODE -eq 0) { Say "  push OK ($Label)" "DarkGreen" }
-  else { Say "  push nije prosao - nastavljam lokalno" "DarkYellow" }
+# Redosled je bitan: prvo backend na prod, pa tek onda front. Obrnuto bi znacilo
+# da Vercel pusti stranicu koja zove Convex funkcije koje jos ne postoje.
+# Nijedan neuspeh ovde NE prekida lanac - kod je vec iskomitovan lokalno.
+function Publish-Step([string]$Label, [string]$LogPath) {
+  Add-Content -Path $LogPath -Value "`n===== DEPLOY: $Label =====" -Encoding UTF8
+
+  $cx = cmd /c "npx convex deploy -y 2>&1"
+  Add-Content -Path $LogPath -Value ($cx -join "`n") -Encoding UTF8
+  if ($LASTEXITCODE -ne 0) {
+    # starije verzije CLI-ja ne znaju za -y
+    Say "  convex deploy -y nije prosao, probam bez zastavice..." "DarkYellow"
+    $cx = cmd /c "npx convex deploy 2>&1"
+    Add-Content -Path $LogPath -Value ($cx -join "`n") -Encoding UTF8
+  }
+  if ($LASTEXITCODE -eq 0) { Say "  convex prod OK" "DarkGreen" }
+  else { Say "  convex deploy PAO - front NE deployujem (backend bi bio stariji)" "DarkYellow"; return }
+
+  if (-not $hasRemote) { Say "  nema remote-a, front nije deployovan" "DarkYellow"; return }
+  if ((Git-Quiet push origin $Branch) -ne 0) { Say "  git push PAO - front nije deployovan" "DarkYellow"; return }
+  Say "  push OK, Vercel gradi..." "DarkGreen"
+
+  # sacekaj da Vercel zavrsi build pa proveri da je prod ziv
+  Start-Sleep -Seconds 100
+  for ($i = 1; $i -le 6; $i++) {
+    try {
+      $r = Invoke-WebRequest -Uri $ProdUrl -UseBasicParsing -TimeoutSec 25 -MaximumRedirection 3
+      if ($r.StatusCode -eq 200) {
+        Say "  PROD ziv ($($r.StatusCode)) - $ProdUrl" "Green"
+        Add-Content -Path $LogPath -Value "PROD OK $($r.StatusCode) posle $($i * 30)s cekanja" -Encoding UTF8
+        return
+      }
+    } catch { }
+    Start-Sleep -Seconds 30
+  }
+  Say "  PROD nije odgovorio 200 u roku - proveri Vercel ujutru" "DarkYellow"
+  Add-Content -Path $LogPath -Value "PROD nije vratio 200 u predvidjenom roku." -Encoding UTF8
 }
 
 # Convex dev se NE drzi u pozadini: provera `npx convex dev --once` bi se tukla sa njim
@@ -224,9 +275,9 @@ i sta je ostalo slomljeno, pa stani.
   $dur = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
 
   if ($fails.Count -eq 0) {
-    git add -A 2>&1 | Out-Null
-    git commit -m "nightrun korak ${num}: $name" 2>&1 | Out-Null
-    Push-Step "korak $num"
+    Git-Quiet add -A | Out-Null
+    Git-Quiet commit -m "nightrun korak ${num}: $name" | Out-Null
+    Publish-Step "korak $num" $log
     Say "KORAK $num PROSAO ($dur min, popravki: $repairs)" "Green"
     Note "| $num | $name | OK | $dur min | $repairs |"
     $results += @{ n = $num; ok = $true }
@@ -234,9 +285,9 @@ i sta je ostalo slomljeno, pa stani.
     Say "KORAK $num PAO: $($fails -join ', ')" "Red"
     Note "| $num | $name | PAO: $($fails -join ', ') | $dur min | $repairs |"
     $results += @{ n = $num; ok = $false }
-    git add -A 2>&1 | Out-Null
-    git commit -m "nightrun korak ${num}: $name (PAO - vidi logs/$name.log)" 2>&1 | Out-Null
-    Push-Step "korak $num (pao)"
+    Git-Quiet add -A | Out-Null
+    Git-Quiet commit -m "nightrun korak ${num}: $name (PAO - vidi logs/$name.log)" | Out-Null
+    if ($hasRemote) { Git-Quiet push origin $Branch | Out-Null; Say "  push (bez deploya - korak je pao)" "DarkYellow" }
 
     # Koraci 2 i 3 su backend - temelj. Sve dalje bi bila gradnja na pesku.
     if ($num -le 3) {
@@ -261,7 +312,7 @@ Note "2. Sajt vec radi na http://localhost:3001 - samo osvezi"
 Note "3. ``npm run seed`` - demo podaci"
 Note "4. Logovi po koraku: ``.nightrun\logs\``"
 Note "5. ``git log --oneline`` - svaki korak je zaseban commit, na grani ``$Branch``"
-Note "6. Produkcija NIJE dirana. Deploy se pusta rucno, posle pregleda."
+Note "6. Produkcija: $ProdUrl - deployovana posle svakog USPESNOG koraka"
 
 # Dizemo Convex dev i Next dev (port 3001) da ujutru sajt vec radi.
 Start-Process -FilePath "cmd.exe" -ArgumentList "/k npx convex dev" -WorkingDirectory $root -WindowStyle Minimized | Out-Null
