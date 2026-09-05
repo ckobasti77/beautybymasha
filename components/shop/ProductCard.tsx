@@ -8,6 +8,10 @@ import { FINISH_LABELS } from "@/lib/shopFilters";
 /**
  * Kartica na zidu swatch-eva: krug boje, ime, brend i cena.
  *
+ * `data-shade` na `<li>` nosi hex kartice. Zid ga čita delegirano (`ShopWall`)
+ * i time boji bočicu u zaglavlju — atribut umesto `onPointerEnter` prop-a, jer se
+ * ova kartica crta i iz serverske strane proizvoda, gde handler ne sme preko granice.
+ *
  * Cena ima dva izvora. Statički katalog (`data/products.json`) crta karticu na
  * serveru, pa zid postoji i pre nego što se Convex javi. Kad stigne živa cena
  * (`price`), popust se vidi kao precrtana stara cena. Redosled je namerno takav:
@@ -50,7 +54,7 @@ export function ProductCard({
   const discounted = price ? price.finalPriceRsd < price.priceRsd : false;
 
   return (
-    <li className="group">
+    <li className="group" data-shade={product.hex}>
       <Link
         href={`/shop/${product.slug}`}
         className="flex h-full flex-col rounded-md p-2 text-center focus-ring"

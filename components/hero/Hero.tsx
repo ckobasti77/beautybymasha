@@ -6,6 +6,7 @@ import { LogoSignature } from "@/components/brand/LogoSignature";
 import { Button } from "@/components/ui/Button";
 import { EASE_ENTER, Flip, ScrollTrigger, gsap, useGSAP } from "@/lib/gsap";
 import { revealWords } from "@/lib/textReveal";
+import { useCanvasActive, useWebGLAllowed } from "@/lib/webgl";
 import { HeroFallback } from "./HeroFallback";
 import type { HeroDrivers } from "./LiquidCanvas";
 
@@ -19,81 +20,10 @@ import type { HeroDrivers } from "./LiquidCanvas";
  * Copy je sakriven pre prvog paint-a preko `data-reveal-motion="pending"` (isti ugovor
  * kao `Reveal`: ko krije, taj i otkriva) i tu zastavicu skidamo kad ulaz završi.
  *
- * WebGL se montira samo ako `useHeroWebGL` kaže da smemo. Mobilni nikad.
+ * WebGL se montira samo ako `useWebGLAllowed` (`lib/webgl.ts`) kaže da smemo. Mobilni nikad.
  */
 
 const LiquidCanvas = dynamic(() => import("./LiquidCanvas"), { ssr: false });
-
-/**
- * Sme li hero da pokrene WebGL. Tri uslova iz ADR-005, sva tri moraju da prođu:
- * WebGL2, širina preko 768 px i bez `prefers-reduced-motion`. Prati promene, pa
- * rotacija telefona ili uključen „smanji kretanje" gase canvas bez reload-a.
- */
-function useHeroWebGL(): boolean {
-  const [allowed, setAllowed] = useState(false);
-
-  useEffect(() => {
-    const small = window.matchMedia("(max-width: 768px)");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const evaluate = () => {
-      if (small.matches || reduced.matches) {
-        setAllowed(false);
-        return;
-      }
-      let supported = false;
-      try {
-        supported = Boolean(document.createElement("canvas").getContext("webgl2"));
-      } catch {
-        supported = false;
-      }
-      setAllowed(supported);
-    };
-
-    evaluate();
-    small.addEventListener("change", evaluate);
-    reduced.addEventListener("change", evaluate);
-    return () => {
-      small.removeEventListener("change", evaluate);
-      reduced.removeEventListener("change", evaluate);
-    };
-  }, []);
-
-  return allowed;
-}
-
-/** Crta li canvas uopšte: hero mora biti u kadru i tab vidljiv. */
-function useHeroActive(ref: React.RefObject<HTMLElement | null>, enabled: boolean): boolean {
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !enabled) {
-      setActive(false);
-      return;
-    }
-    let inView = true;
-    const sync = () => setActive(inView && document.visibilityState === "visible");
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        inView = entry.isIntersecting;
-        sync();
-      },
-      { threshold: 0 },
-    );
-    io.observe(el);
-    document.addEventListener("visibilitychange", sync);
-    sync();
-
-    return () => {
-      io.disconnect();
-      document.removeEventListener("visibilitychange", sync);
-    };
-  }, [ref, enabled]);
-
-  return active;
-}
 
 type FitVars = { x: number; y: number; scaleX: number; scaleY: number };
 
@@ -107,8 +37,8 @@ export function Hero() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLParagraphElement>(null);
 
-  const webgl = useHeroWebGL();
-  const active = useHeroActive(rootRef, webgl);
+  const webgl = useWebGLAllowed();
+  const active = useCanvasActive(rootRef, webgl);
 
   // Mutable kutija van React-a: menja se svakog frejma i ne sme da izaziva re-render.
   // `useState` sa inicijalizatorom, ne `useRef().current` — ref se ne čita u renderu.

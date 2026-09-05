@@ -1,6 +1,7 @@
 # STATUS
 
-Stanje posle koraka **07 — SEO, demo podaci, pristupačnost, performanse, priprema za deploy**.
+Stanje posle koraka **08 — 3D bočica laka** (nadograđuje korak 07: SEO, demo podaci,
+pristupačnost, performanse, priprema za deploy).
 Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Provera koja prolazi
@@ -9,19 +10,89 @@ Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjo
 npx convex dev --once   ✓
 npm run typecheck       ✓
 npm run lint            ✓  (nula upozorenja)
-npm test                ✓  125 testova, 7 fajlova  (+9 novih za JSON-LD)
+npm test                ✓  125 testova, 7 fajlova
 npm run build           ✓  83 strane; /admin dinamičan (ƒ), sitemap.xml i robots.txt statični
 ```
+
+Sve pet provera su pokrenute jedna za drugom, u ovom redosledu, na ovom kodu.
 
 Provera otkrivanja teksta iz `docs/MOTION.md` vraća **prazan niz** — na `/` i `/shop`,
 na 1440 px i na 390 px. `[data-reveal-state="pending"]` je 0, `.reveal-word` je 0,
 horizontalnog prekoračenja nema (0 px). Shader se na 1440 px pojavljuje (1 `<canvas>`),
 na 390 px ga nema (0) — kako i treba.
 
-**Napomena o `npm run build` (i dalje važi):** na Windows-u ume da padne sa
-`build worker exited with code: 3221226356`. To je pad radnog procesa, ne greška u kodu —
-desilo se i večeras, jednom, na istom kodu koji je odmah zatim prošao.
-`rm -rf .next && npm run build` prolazi.
+## Popravka posle koraka 08 — šta je stvarno bilo slomljeno
+
+Prijava je glasila „pada build". Build **nije** bio uzrok; padale su dve različite
+stvari, a jedna od njih se uopšte nije pojavljivala u izveštaju jer nije ni pokretana.
+
+### 1. `npx convex dev --once` — `@convex-dev/auth` nije bio instaliran
+
+Prava, ponovljiva greška. Convex nije mogao da spakuje funkcije:
+
+```
+✘ [ERROR] Could not resolve "@convex-dev/auth/server"     convex/auth.ts:2
+✘ [ERROR] Could not resolve "@convex-dev/auth/server"     convex/schema.ts:1
+✘ [ERROR] Could not resolve "@convex-dev/auth/providers/Password"
+```
+
+Paket je i u `package.json` (`^0.0.95`) i u `package-lock.json`, ali ga nije bilo u
+`node_modules/@convex-dev/` — prekinuta ili nepotpuna instalacija. Nije greška u kodu:
+`convex/auth.ts` i `convex/schema.ts` su ispravni, samo im je zavisnost nedostajala.
+
+Popravka: `npm install`. Posle toga `npx convex dev --once` prolazi
+(„Convex functions ready!").
+
+Zašto ovo nije ranije primećeno: korak 08 je zapisao da „nije dirao Convex, pa provera
+iz koraka 07 i dalje važi", pa `convex dev --once` nije ni pokrenut. Provera koja se
+ne pokrene ne važi — `node_modules` se u međuvremenu promenio, a fajl sa statusom nije.
+
+`npm install` je usput ispravio i `package-lock.json`: sa nekoliko `sharp` i `@emnapi`
+opcionih zavisnosti skinuta je oznaka `"dev": true`, jer ih sada preko `@convex-dev/auth`
+povlači i produkciono stablo. Metapodatak, ne promena verzije.
+
+### 2. `npm run build` — pad radnog procesa je stvar mašine, ne koda
+
+`build worker exited with code: 3221226356` (`0xC0000374`, oštećenje hipa u radnom
+procesu). Reprodukovano jednom na hladnom `.next`-u, pa **22 uzastopna hladna builda
+bez ijednog pada** na istom kodu — uključujući merenu seriju od 10/10.
+
+Nije vezano za korak 08: log koraka 07 ga već zove „poznata Windows flake iz ranijih
+koraka". Provereno je i da nisu krive `next/og` rute (`opengraph-image`, `icon`,
+`apple-icon`, jedini nativni/WASM posao u generisanju strana) — 6 hladnih buildova bez
+njih i 6 sa njima prošlo je isto, pa ta veza ne stoji.
+
+Šta se sa padovima poklapa: Next pokreće **15 radnih procesa** (`os.cpus() - 1`) na
+mašini sa 16,8 GB ukupno i ~6,4 GB slobodno. Oba pada su se desila dok je mašina bila
+opterećena drugim poslom. Ako se vrati, `next.config.ts` → `experimental.cpus` obara
+broj procesa; namerno **nije** postavljeno sada, jer trenutno nema šta da popravi —
+22/22 prolazi sa podrazumevanom vrednošću.
+
+Ako padne: `rm -rf .next && npm run build` prolazi.
+
+### 3. Zamka u redosledu: `typecheck` posle `rm -rf .next`
+
+Vredi zapisati jer savet iz tačke 2 vodi pravo u nju. `npm run typecheck` odmah posle
+brisanja `.next` prijavi tri greške koje **nisu** stvarne:
+
+```
+app/layout.tsx(74,50): error TS2304: Cannot find name 'LayoutProps'.
+app/shop/[slug]/page.tsx(36,52): error TS2304: Cannot find name 'PageProps'.
+app/shop/[slug]/page.tsx(62,55): error TS2304: Cannot find name 'PageProps'.
+```
+
+`PageProps` i `LayoutProps` su globalni tipovi koje Next 16 generiše u `.next/types`.
+Obrisan `.next` znači da ih nema. `npm run build` ih vrati i `typecheck` prolazi —
+kod se ne dira. Zato provere idu **build pre typecheck-a** kad je `.next` obrisan.
+
+Nijedan test nije menjan: 125/125 prolazi i prolazilo je sve vreme.
+
+## Prethodni korak (07) nije ostavio ništa slomljeno
+
+`typecheck` i `lint` su prošli pre ijedne izmene u koraku 08, a produkcija
+https://beautybymasha-mu.vercel.app je bila HTTP 200 na `/`, `/shop` i `/nalog`.
+Jedna stvar **jeste** bila pokvarena i popravljena je — vidi „Fotografija proizvoda je
+bila nevidljiva do prvog skrola" niže.
 
 ## Prethodni korak (06) nije ostavio ništa slomljeno
 
@@ -70,6 +141,133 @@ A **pre nego što panel ode vlasnici**:
 ```bash
 npm run seed:clear -- --prod  # skida demo termine i porudžbine; katalog ostaje
 ```
+
+---
+
+# Šta korak 08 dodaje — 3D bočica laka
+
+**3D je ušao.** Model se pravi proceduralno u kodu, nema `.glb` fajla, i početni JS
+nijedne strane nije porastao ni za 3 KB gzip.
+
+## Provera
+
+```
+npm run typecheck   ✓
+npm run lint        ✓  (nula upozorenja)
+npm test            ✓  125 testova, 7 fajlova
+npm run build       ✓  83 strane
+```
+
+### Bundle — mereno pre i posle, istim alatom
+
+Novi `scripts/measure-bundle.mjs` čita `<script src>` iz sagrađenog HTML-a i gzip-uje
+svaki chunk. Tabela iz `next build` meša deljene chunkove i ne kaže koliko je porasla
+baš jedna ruta.
+
+| Ruta | Pre | Posle | Razlika |
+| --- | --- | --- | --- |
+| `/` | 305,7 KB | 306,2 KB | **+0,5 KB** |
+| `/shop` | 294,2 KB | 296,7 KB | **+2,5 KB** |
+| `/shop/[slug]` | 283,4 KB | 285,7 KB | **+2,3 KB** |
+
+Granica iz zadatka je bila 150 KB gzip. Ostali smo na **2,5 KB** jer u početni JS ulazi
+samo kapija i `next/dynamic` kukica — `three` nije unutra, provereno grepom po
+chunkovima koje sagrađeni `/shop` zaista traži (`WebGLRenderer` se ne pojavljuje ni u
+jednom). Lenji chunk sa `three` je 230 KB gzip i stiže tek pošto kapija propusti; taj
+isti chunk je već postojao zbog hero shadera.
+
+## Model — `components/three/bottleGeometry.ts`
+
+Nema `.glb` fajla. Mreža je nula bajtova na mreži: sve je u kodu, pa nema ni skidanja
+ni Draco dekodera ni promašenog keša.
+
+Tri mreže sa imenima koja traži `docs/3D-ASSETS.md`:
+
+| Mesh | Materijal | Trouglova |
+| --- | --- | --- |
+| `Glass` | `MeshPhysicalMaterial`, `transmission` 1.0, `roughness` 0.05, `ior` 1.45, `thickness` 0.15 | ~3.400 |
+| `Liquid` | `MeshStandardMaterial`, boja iz `hex` proizvoda, `roughness` 0.15 | ~2.700 |
+| `Cap` | `MeshStandardMaterial`, `#161311`, `roughness` 0.4 | ~1.400 |
+
+Ukupno ispod 8.000 trouglova — budžet je 40.000. Dno je u `y = 0`, centrirano po X i Z,
+ukupna visina 9,48 jedinice, nivo tečnosti na 80% visine tela. **Nema logotipa ni teksta
+na modelu**, kako traže i brief i `docs/3D-ASSETS.md`.
+
+**Presek nije krug.** `LatheGeometry` po definiciji daje okruglo telo, a bočica laka je
+zaobljen kvadrat. Zato se posle vrtnje svako teme gurne po superelipsi
+(`1 / (|cosθ|^n + |sinθ|^n)^(1/n)`), sa `n` koje pada sa visinom: kvadratasto pri dnu,
+okruglo u vratu, gde zatvarač naleže. Isti profil, isti broj temena, tačan oblik.
+
+Okruženje je `RoomEnvironment` provučen kroz PMREM — jednom, u kodu, bez ijednog fajla.
+Bez njega `transmission` staklo izgleda kao siva plastika. Kači se direktno na materijale
+kroz ref, ne na `scene.environment`: scena je tuđi objekat, a `setState` iz efekta bi bio
+jedan bespotreban prolaz kroz render.
+
+Bez postprocessinga, bez senki, jedno usmereno svetlo — kako traži `docs/3D-ASSETS.md`.
+
+## Gde se vidi
+
+| Mesto | Šta radi |
+| --- | --- |
+| zaglavlje `/shop` | tečnost prati nijansu nad kojom je kursor u zidu swatch-eva; kad kursor ode sa zida, vraća se na podrazumevanu (prvi bestseler iz kategorije „lakovi") |
+| `/shop/[slug]` | bočica u nijansi tog proizvoda, ispod fotografije |
+
+Hover ide kroz mali spoljni store (`components/shop/hoveredShade.ts`) i **jedan**
+delegirani `pointerover` na omotaču zida — `<li>` nosi hex u `data-shade`. Bez toga bi
+podizanje state-a ponovo renderovalo svih 70 kartica na svaki prelaz mišem.
+
+Fotografija proizvoda **ostaje glavni prikaz** i ono što ide u Google Images. Bočica je
+dodatak ispod nje, ne zamena.
+
+## Kapija — nikad na mobilnom, nikad uz „smanji kretanje"
+
+`lib/webgl.ts` (`useWebGLAllowed`, `useCanvasActive`). Ta dva hooka su bila lokalna u
+`components/hero/Hero.tsx`; sad su na jednom mestu i hero ih uvozi odatle. Druga kopija
+istog pravila značila bi da se „nikad na mobilnom" jednog dana promeni na jednom mestu a
+na drugom ne.
+
+Provereno u browseru:
+
+| Uslov | `<canvas>` na `/shop` | na `/shop/vintage` |
+| --- | --- | --- |
+| 1440 px, bez reduced-motion | 1 | 1 |
+| 390 px | **0** | **0** |
+| 1440 px + `prefers-reduced-motion: reduce` | **0** | **0** |
+
+Kad 3D ne sme: na `/shop` ostaje krug boje, na strani proizvoda ostaje fotografija koja
+ionako stoji iznad. Nula grešaka u konzoli. Nema horizontalnog prekoračenja ni na 390 px.
+
+Provera otkrivanja teksta iz `docs/MOTION.md` je **prazna** na `/`, `/shop` i
+`/shop/vintage`, na 1440 px i na 390 px: 0 sakrivenog copy-ja, 0
+`[data-reveal-state="pending"]`, 0 `.reveal-word`.
+
+---
+
+# Popravljeno iz ranijih koraka
+
+## Fotografija proizvoda je bila nevidljiva do prvog skrola
+
+**Bilo je i na produkciji**, ne samo lokalno. Na `/shop/[slug]` je glavna fotografija
+dočekivala gosta kao prazno mesto; pojavila bi se tek kad se strana pomeri.
+
+Uzrok je u `components/motion/Reveal.tsx`. `start: "clamp(top 85%)"` gura start koji bi
+pao pre vrha strane na tačno 0, pa element koji je već u prvom ekranu stoji **na** startu,
+a ne iza njega. `onEnter` traži prelazak i nikad ne okine, a `Reveal` je u međuvremenu
+sam sakrio sadržaj (`clipPath: inset(100% 0 0)`) — ko krije, taj i otkriva, a ovde niko
+nije otkrio.
+
+Popravka je `onRefresh` koji pusti timeline kad je start već dostignut:
+
+```ts
+onRefresh: (self) => {
+  if (self.scroll() >= self.start) tl.play();
+}
+```
+
+Dodat je i `trigger.kill()` u čišćenju — ranije je trigger ostajao živ kad se komponenta
+ukloni pre nego što uđe u kadar.
+
+Ovo važi za **svaki** `Reveal` iznad preloma, ne samo za fotografiju proizvoda.
 
 ---
 

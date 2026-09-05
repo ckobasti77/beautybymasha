@@ -7,6 +7,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { AddToCartForm } from "@/components/shop/AddToCartForm";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { ProductSwatch } from "@/components/shop/ProductSwatch";
+import { BottleShowcase } from "@/components/three/BottleShowcase";
 import { JsonLd } from "@/components/site/JsonLd";
 import { Section } from "@/components/site/Section";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -21,6 +22,11 @@ import { site } from "@/lib/site";
 /**
  * Strana proizvoda. Katalog je statičan, pa se svih 70 strana gradi unapred;
  * cena i stanje su jedino što se traži uživo (`AddToCartForm`).
+ *
+ * Ispod fotografije stoji 3D bočica u nijansi ovog proizvoda. Ona je dodatak, ne
+ * zamena: fotografija ostaje glavni prikaz i ono što ide u Google Images. Kad 3D
+ * ne sme (telefon, „smanji kretanje“, bez WebGL2), blok jednostavno izostane —
+ * slika koja mu je fallback stoji tačno iznad njega.
  */
 
 export function generateStaticParams() {
@@ -99,24 +105,35 @@ export default async function ProductPage({ params }: PageProps<"/shop/[slug]">)
           </nav>
 
           <div className="mt-8 grid gap-10 md:grid-cols-2 md:gap-16">
-            <Reveal variant="clip" className="group overflow-hidden rounded-lg bg-bg-sunken" revealOff>
-              {product.localAvif ? (
-                <Image
-                  src={product.localAvif}
-                  alt={`${BRAND_LABELS[product.brand]} ${product.name}, lak za nokte`}
-                  width={900}
-                  height={900}
-                  sizes="(min-width: 768px) 50vw, 100vw"
-                  priority
-                  className="aspect-square w-full object-cover"
+            <div>
+              <Reveal variant="clip" className="group overflow-hidden rounded-lg bg-bg-sunken" revealOff>
+                {product.localAvif ? (
+                  <Image
+                    src={product.localAvif}
+                    alt={`${BRAND_LABELS[product.brand]} ${product.name}, lak za nokte`}
+                    width={900}
+                    height={900}
+                    sizes="(min-width: 768px) 50vw, 100vw"
+                    priority
+                    className="aspect-square w-full object-cover"
+                  />
+                ) : (
+                  // Entity nema fotografiju: veliki krug boje je ceo prikaz.
+                  <div className="flex aspect-square w-full items-center justify-center p-10">
+                    <ProductSwatch product={product} sizes="(min-width: 768px) 40vw, 80vw" priority />
+                  </div>
+                )}
+              </Reveal>
+
+              <div className="mt-4">
+                <BottleShowcase
+                  hex={product.hex}
+                  label={`Bočica laka u nijansi ${product.name}. Povucite da je okrenete.`}
+                  caption="Nijansa na bočici, prikazana u tri dimenzije. Povucite da je okrenete."
+                  className="aspect-[4/3] w-full rounded-lg bg-bg-sunken"
                 />
-              ) : (
-                // Entity nema fotografiju: veliki krug boje je ceo prikaz.
-                <div className="flex aspect-square w-full items-center justify-center p-10">
-                  <ProductSwatch product={product} sizes="(min-width: 768px) 40vw, 80vw" priority />
-                </div>
-              )}
-            </Reveal>
+              </div>
+            </div>
 
             <div>
               <p className="text-overline text-link">{BRAND_LABELS[product.brand]}</p>

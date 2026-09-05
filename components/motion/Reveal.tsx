@@ -153,15 +153,26 @@ export function Reveal({
             );
           }
 
-          ScrollTrigger.create({
+          const trigger = ScrollTrigger.create({
             trigger: el,
             start: "clamp(top 85%)",
             once: true,
             onEnter: () => tl.play(),
+            /*
+             * `clamp()` gura start koji bi pao pre vrha strane na tačno 0. Element
+             * koji je već u prvom ekranu tada stoji NA startu, a ne iza njega —
+             * `onEnter` traži prelazak, pa nikad ne okine i sadržaj ostane sakriven
+             * do prvog skrola. Tako je fotografija proizvoda na `/shop/[slug]`
+             * dočekivala gosta kao prazno mesto.
+             */
+            onRefresh: (self) => {
+              if (self.scroll() >= self.start) tl.play();
+            },
           });
 
           return () => {
             tl.kill();
+            trigger.kill();
           };
         },
       );

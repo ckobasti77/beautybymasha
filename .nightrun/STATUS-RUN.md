@@ -10,3 +10,4 @@ Model: opus | Koraci: 2-8 | Timeout po koraku: 75 min
 | 4 | 04-landing-i-zakazivanje | OK | 41.4 min | 0 |
 | 5 | 05-shop-korpa-nalog | OK | 36.1 min | 0 |
 | 6 | 06-admin-panel | OK | 40.3 min | 0 |
+| 7 | 07-seo-qa-seed | OK | 22.3 min | 0 |

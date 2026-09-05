@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductCard, type LivePrice } from "@/components/shop/ProductCard";
 import { ShopFiltersBar } from "@/components/shop/ShopFiltersBar";
+import { setHoveredShade } from "@/components/shop/hoveredShade";
 import { products as catalog, type Product } from "@/lib/products";
 import { applyFilters, filtersFromParams, filtersToQuery, type ShopFilters } from "@/lib/shopFilters";
 
@@ -16,6 +17,10 @@ import { applyFilters, filtersFromParams, filtersToQuery, type ShopFilters } fro
  *
  * Stanje filtera nosi URL (`router.replace`, bez skrola): link se deli, dugme
  * „nazad" vraća prethodni izbor, a ponovno učitavanje zatiče isti zid.
+ *
+ * Nijansa pod kursorom se javlja bočici u zaglavlju kroz `hoveredShade`. Sluša se
+ * jedan `pointerover` na omotaču zida, ne 70 handlera na karticama — `<li>` nosi
+ * hex u `data-shade`, pa je dovoljan `closest`.
  *
  * Cene: kartice se crtaju iz statičkog kataloga, a živa cena i stanje stižu iz
  * Convex-a i prepisuju ih. Bez `NEXT_PUBLIC_CONVEX_URL` nema auth provider-a,
@@ -44,31 +49,44 @@ function Grid({ products, prices }: { products: Product[]; prices: Map<string, L
       </p>
     );
   }
+  const onOver = (e: React.PointerEvent<HTMLDivElement>) => {
+    const li = (e.target as HTMLElement).closest<HTMLElement>("li[data-shade]");
+    if (li?.dataset.shade) setHoveredShade(li.dataset.shade);
+  };
+
   return (
-    <Reveal
-      as="ul"
-      stagger={0.02}
-      // Ceo tekst kartice je unutar <a> i mora da bude čitljiv istog trena; bez
-      // ovoga bi text-reveal obeležio <li> i tražio reči kojih tu nema.
-      revealOff
-      className="mt-12 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-    >
-      {products.map((p, i) => (
-        <ProductCard
-          key={p.slug}
-          product={p}
-          price={prices.get(p.slug)}
-          priority={i < 4}
-          sizes="(min-width: 1280px) 200px, (min-width: 768px) 24vw, 40vw"
-        />
-      ))}
-    </Reveal>
+    // Omotač nosi delegaciju: `Reveal` namerno prosleđuje samo svoj skup prop-ova,
+    // pa se handleri kače spolja umesto da mu se širi API.
+    <div onPointerOver={onOver} onPointerLeave={() => setHoveredShade(null)}>
+      <Reveal
+        as="ul"
+        stagger={0.02}
+        // Ceo tekst kartice je unutar <a> i mora da bude čitljiv istog trena; bez
+        // ovoga bi text-reveal obeležio <li> i tražio reči kojih tu nema.
+        revealOff
+        className="mt-12 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      >
+        {products.map((p, i) => (
+          <ProductCard
+            key={p.slug}
+            product={p}
+            price={prices.get(p.slug)}
+            priority={i < 4}
+            sizes="(min-width: 1280px) 200px, (min-width: 768px) 24vw, 40vw"
+          />
+        ))}
+      </Reveal>
+    </div>
   );
 }
 
 function Wall({ prices }: { prices: Map<string, LivePrice> }) {
   const [filters, setFilters] = useFilters();
   const visible = useMemo(() => applyFilters(catalog, filters), [filters]);
+
+  // Bez ovoga bi bočica ostala u poslednjoj nijansi i pošto zid nestane
+  // (odlazak na stranu proizvoda).
+  useEffect(() => () => setHoveredShade(null), []);
 
   return (
     <>
