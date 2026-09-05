@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { locationKeyValidator, resourceKeyValidator } from "./schema";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import { MESSAGES } from "./lib/validate";
 
 /** Najveći broj paralelnih mesta po resursu — brana od greške u kucanju. */
@@ -36,7 +36,7 @@ export const set = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     if (!Number.isInteger(args.count) || args.count < 0 || args.count > MAX_CAPACITY) {
       throw new ConvexError(MESSAGES.capacity);
     }

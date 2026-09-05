@@ -5,3 +5,4 @@ Model: opus | Koraci: 2-8 | Timeout po koraku: 75 min
 
 | Korak | Naziv | Ishod | Trajanje | Popravki |
 | --- | --- | --- | --- | --- |
+| 2 | 02-backend-zakazivanje | OK | 18.9 min | 0 |

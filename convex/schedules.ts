@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import schema, { locationKeyValidator, overrideKindValidator, rangeValidator } from "./schema";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import { DEFAULT_SETTINGS, MAX_SCHEDULE_ROWS } from "./lib/availability";
 import { MESSAGES, shortText, validateRanges } from "./lib/validate";
 import { isValidDate } from "../lib/slots";
@@ -11,7 +11,7 @@ export const listWeekly = query({
   args: { key: v.string() },
   returns: v.array(schema.doc("schedules")),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     return await ctx.db.query("schedules").take(200);
   },
 });
@@ -43,7 +43,7 @@ export const set = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     if (!Number.isInteger(args.weekday) || args.weekday < 0 || args.weekday > 6) throw new ConvexError(MESSAGES.range);
     if (args.ranges.length > 6) throw new ConvexError(MESSAGES.range);
     validateRanges(args.ranges);
@@ -79,7 +79,7 @@ export const listOverrides = query({
   args: { key: v.string(), from: v.string(), to: v.string() },
   returns: v.array(schema.doc("scheduleOverrides")),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     return await ctx.db
       .query("scheduleOverrides")
       .withIndex("by_date", (q) => q.gte("date", args.from).lte("date", args.to))
@@ -99,7 +99,7 @@ export const upsertOverride = mutation({
   },
   returns: v.id("scheduleOverrides"),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     if (!isValidDate(args.date)) throw new ConvexError(MESSAGES.dateFormat);
     let startMin: number | undefined;
     let endMin: number | undefined;
@@ -137,7 +137,7 @@ export const removeOverride = mutation({
   args: { key: v.string(), id: v.id("scheduleOverrides") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const doc = await ctx.db.get("scheduleOverrides", args.id);
     if (doc) await ctx.db.delete("scheduleOverrides", args.id);
     return null;

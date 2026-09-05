@@ -190,5 +190,25 @@
     "flatRsd": 400,
     "freeOverRsd": 6000,
     "note": "[POTVRDITI] - okvirne vrednosti, uskladiti sa njenim kurirom"
+  },
+  "payment": {
+    "methods": [
+      "pouzecem",
+      "ips"
+    ],
+    "note": "pouzecem = placanje kuriru pri preuzimanju. ips = IPS QR (NBS) prenos na racun salona. Dok ips.account nije popunjen, sajt nudi samo pouzece.",
+    "ips": {
+      "account": "",
+      "accountNote": "[POTVRDITI kod vlasnice] - tekuci racun salona, tacno 18 cifara bez crtica i razmaka. NIJE POZNAT - ne izmisljati. Dok je prazan, IPS QR se ne generise.",
+      "recipientName": "[POTVRDITI]",
+      "recipientNameNote": "[POTVRDITI kod vlasnice] - naziv primaoca tacno kako je upisan u banci (verovatno pun naziv radnje iz APR-a).",
+      "recipientAddress": "[POTVRDITI]",
+      "recipientAddressNote": "[POTVRDITI kod vlasnice] - ulica i broj sedista firme, ne nuzno adresa lokala.",
+      "recipientCity": "[POTVRDITI]",
+      "recipientCityNote": "[POTVRDITI kod vlasnice] - postanski broj i grad sedista.",
+      "paymentCode": "289",
+      "paymentCodeNote": "289 = prenos po nalogu fizickog lica. [POTVRDITI] da li njena banka trazi drugu sifru.",
+      "envNote": "Sve gore se u produkciji prebrisuje Convex env promenljivama: IPS_RECIPIENT_ACCOUNT, IPS_RECIPIENT_NAME, IPS_RECIPIENT_ADDRESS, IPS_RECIPIENT_CITY, IPS_PAYMENT_CODE - da broj racuna ne stoji u gitu."
+    }
   }
 }

@@ -72,6 +72,32 @@ export type Site = {
     readonly note: string;
   };
   readonly shipping: { readonly flatRsd: number; readonly freeOverRsd: number; readonly note?: string };
+  readonly payment: Payment;
+};
+
+export const PAYMENT_METHODS = ["pouzecem", "ips"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_METHOD_LABELS: Readonly<Record<PaymentMethod, string>> = {
+  pouzecem: "Pouzećem",
+  ips: "IPS QR (prenos)",
+};
+
+/**
+ * Podaci primaoca za IPS QR. U repozitorijumu su [POTVRDITI] — broj računa
+ * salona nije poznat i ne sme se izmisliti. U produkciji ih prebrisuju Convex
+ * env promenljive (vidi `ips.envNote` u data/site.json), pa račun ne stoji u gitu.
+ * Dok je `account` prazan, `lib/ips.ts` vraća `null` i sajt nudi samo pouzeće.
+ */
+export type Payment = {
+  readonly methods: readonly PaymentMethod[];
+  readonly ips: {
+    readonly account: string;
+    readonly recipientName: string;
+    readonly recipientAddress: string;
+    readonly recipientCity: string;
+    readonly paymentCode: string;
+  };
 };
 
 function parseWorkWeek(input: unknown, what: string): WorkWeek {
@@ -112,6 +138,21 @@ function parseLocation(input: (typeof raw.locations)[number]): Location {
   };
 }
 
+function parsePayment(input: typeof raw.payment): Payment {
+  const methods = input.methods.map((m) => oneOf(m, PAYMENT_METHODS, "payment.methods"));
+  assert(methods.length > 0, "payment.methods ne sme biti prazan");
+  return {
+    methods,
+    ips: {
+      account: input.ips.account,
+      recipientName: input.ips.recipientName,
+      recipientAddress: input.ips.recipientAddress,
+      recipientCity: input.ips.recipientCity,
+      paymentCode: input.ips.paymentCode,
+    },
+  };
+}
+
 function parseSite(input: typeof raw): Site {
   assert(input.currency === "RSD", "site.currency mora biti RSD");
   const locations = input.locations.map(parseLocation);
@@ -135,6 +176,7 @@ function parseSite(input: typeof raw): Site {
     booking: input.booking,
     loyalty: input.loyalty,
     shipping: input.shipping,
+    payment: parsePayment(input.payment),
   };
 }
 

@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import { DEFAULT_SETTINGS, getSettings, type Settings } from "./lib/availability";
 import { MESSAGES } from "./lib/validate";
 
@@ -39,7 +39,7 @@ export const get = query({
   args: { key: v.string() },
   returns: settingsShape,
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     return await getSettings(ctx);
   },
 });
@@ -49,7 +49,7 @@ export const confirmHours = mutation({
   args: { key: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const existing = await ctx.db.query("settings").first();
     if (!existing) {
       await ctx.db.insert("settings", { ...DEFAULT_SETTINGS, hoursConfirmed: true });
@@ -75,7 +75,7 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     assertInt(args.slotStepMin, 5, 120);
     assertInt(args.leadTimeMin, 0, 7 * 24 * 60);
     assertInt(args.horizonDays, 1, 365);

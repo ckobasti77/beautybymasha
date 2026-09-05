@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import schema, { resourceKeyValidator, serviceGroupKeyValidator } from "./schema";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import { MAX_SERVICES, getService, resourceOfGroup } from "./lib/availability";
 import { MESSAGES } from "./lib/validate";
 
@@ -57,7 +57,7 @@ export const listAll = query({
   args: { key: v.string() },
   returns: v.array(schema.doc("services")),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const rows = await ctx.db.query("services").take(MAX_SERVICES);
     return rows.sort((a, b) => a.order - b.order);
   },
@@ -87,7 +87,7 @@ export const create = mutation({
   },
   returns: v.id("services"),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     // Ključ bez dijakritika i razmaka — ide u URL i u indeks.
     const serviceKey = args.serviceKey.trim().toLowerCase();
     if (!/^[a-z0-9-]{2,60}$/.test(serviceKey)) throw new ConvexError(MESSAGES.service);
@@ -132,7 +132,7 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const service = await getService(ctx, args.serviceKey);
     if (!service) throw new ConvexError(MESSAGES.service);
     if (args.durationMin !== undefined) assertDuration(args.durationMin);
@@ -163,7 +163,7 @@ export const setHidden = mutation({
   args: { key: v.string(), serviceKey: v.string(), hidden: v.boolean() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const service = await getService(ctx, args.serviceKey);
     if (!service) throw new ConvexError(MESSAGES.service);
     await ctx.db.patch("services", service._id, { hidden: args.hidden });

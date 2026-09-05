@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import {
   DEFAULT_CAPACITY,
   DEFAULT_SETTINGS,
@@ -10,6 +10,7 @@ import {
 } from "./lib/availability";
 import { RESOURCE_KEYS, site } from "../lib/site";
 import { services as catalog } from "../lib/services";
+import { productCategories as productCategoryCatalog, products as productCatalog } from "../lib/products";
 
 /** Da li je baza inicijalizovana i da li vlasnica tek treba da potvrdi radno vreme. */
 export const status = query({
@@ -21,7 +22,7 @@ export const status = query({
     services: v.number(),
   }),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const settings = await getSettings(ctx);
     const locations = await ctx.db.query("locations").take(10);
     const services = await ctx.db.query("services").take(500);
@@ -52,7 +53,7 @@ export const init = mutation({
     settings: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const result = { locations: 0, capacities: 0, schedules: 0, services: 0, settings: false };
 
     const existingLocations = await ctx.db.query("locations").take(10);
@@ -122,6 +123,60 @@ export const init = mutation({
     if (!settings) {
       await ctx.db.insert("settings", { ...DEFAULT_SETTINGS, hoursConfirmed: false });
       result.settings = true;
+    }
+
+    return result;
+  },
+});
+
+/**
+ * Idempotentan seed webshopa iz data/products.json: 4 kategorije i 70 proizvoda.
+ *
+ * Isto pravilo kao `init`: uparuje se po `sku` i ništa što je vlasnica već
+ * promenila u adminu se ne pregazi. Nov proizvod u JSON-u uđe pri sledećem
+ * pozivu; postojeći ostane onakav kakvim ga je ona ostavila — uključujući
+ * stanje, cenu i popust.
+ */
+export const seedShop = mutation({
+  args: { key: v.optional(v.string()) },
+  returns: v.object({ categories: v.number(), products: v.number() }),
+  handler: async (ctx, args) => {
+    await assertAdmin(ctx, args.key);
+    const result = { categories: 0, products: 0 };
+
+    const existingCategories = await ctx.db.query("productCategories").take(50);
+    const categoryKeys = new Set(existingCategories.map((c) => c.key));
+    for (const c of productCategoryCatalog) {
+      if (categoryKeys.has(c.key)) continue;
+      await ctx.db.insert("productCategories", { key: c.key, title: c.title, order: c.order });
+      result.categories++;
+    }
+
+    const existingProducts = await ctx.db.query("products").take(1000);
+    const skus = new Set(existingProducts.map((p) => p.sku));
+    for (const [index, p] of productCatalog.entries()) {
+      if (skus.has(p.sku)) continue;
+      await ctx.db.insert("products", {
+        slug: p.slug,
+        sku: p.sku,
+        name: p.name,
+        brand: p.brand,
+        categoryKey: p.category,
+        priceRsd: p.priceRsd,
+        discountPercent: 0,
+        hex: p.hex,
+        finish: p.finish,
+        family: p.family,
+        description: p.description,
+        swatchOnly: p.swatchOnly,
+        imagePath: p.localAvif,
+        storageImageIds: [],
+        stock: p.stock,
+        bestseller: p.bestseller,
+        active: true,
+        order: index,
+      });
+      result.products++;
     }
 
     return result;

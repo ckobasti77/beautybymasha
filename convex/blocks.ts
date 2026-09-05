@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import schema, { locationKeyValidator, resourceKeyValidator } from "./schema";
-import { assertAdminKey } from "./lib/admin";
+import { assertAdmin } from "./lib/admin";
 import { MAX_BLOCKS_PER_DAY } from "./lib/availability";
 import { MESSAGES, shortText, validateRanges } from "./lib/validate";
 import { isValidDate } from "../lib/slots";
@@ -14,7 +14,7 @@ export const listDay = query({
   args: { key: v.string(), locationKey: locationKeyValidator, date: v.string() },
   returns: v.array(schema.doc("blocks")),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     return await ctx.db
       .query("blocks")
       .withIndex("by_location_date", (q) => q.eq("locationKey", args.locationKey).eq("date", args.date))
@@ -34,7 +34,7 @@ export const add = mutation({
   },
   returns: v.id("blocks"),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     if (!isValidDate(args.date)) throw new ConvexError(MESSAGES.dateFormat);
     validateRanges([{ startMin: args.startMin, endMin: args.endMin }]);
     return await ctx.db.insert("blocks", {
@@ -52,7 +52,7 @@ export const remove = mutation({
   args: { key: v.string(), id: v.id("blocks") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertAdminKey(args.key);
+    await assertAdmin(ctx, args.key);
     const doc = await ctx.db.get("blocks", args.id);
     if (doc) await ctx.db.delete("blocks", args.id);
     return null;
