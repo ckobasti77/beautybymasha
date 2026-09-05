@@ -1,13 +1,23 @@
-import { LatheGeometry, Vector2, type BufferGeometry } from "three";
+import { CylinderGeometry, LatheGeometry, Vector2, type BufferGeometry } from "three";
+import {
+  BRUSH_TIP_Y,
+  HAIR_FLAT_X,
+  HAIR_LENGTH,
+  HAIR_RADIUS_TIP,
+  HAIR_RADIUS_TOP,
+  HAIR_TOP_Y,
+  STEM_RADIUS,
+  STEM_TOP_Y,
+  TOTAL_HEIGHT,
+} from "@/lib/bottleDims";
 
 /**
- * Bočica laka, napravljena u kodu (docs/3D-ASSETS.md → Model 1).
+ * Bočica laka, napravljena u kodu (docs/3D-ASSETS.md → Model 1) — fallback dok GLB iz Blendera
+ * (`bottleGlb.ts`) stiže ili ako padne. Mere su u `lib/bottleDims.ts` (bez three importa), da ih
+ * dele Blender skripta, koreografija i testovi.
  *
- * Nema `.glb` fajla: mreža je nula bajtova na mreži, sve je u ovih par stotina
- * linija. Budžet iz `docs/3D-ASSETS.md` (≤ 40k trouglova, dno u y=0, centrirano
- * po X i Z, 1 jedinica = 1 cm, ukupna visina ≈ 9,5) važi isto kao da je fajl.
- *
- * Tri mreže, tri materijala, tri imena: `Glass`, `Liquid`, `Cap`.
+ * Pet mreža, pet imena: `Glass`, `Liquid`, `Cap`, `BrushStem`, `BrushHair` (četkica je od koraka 14
+ * i u GLB-u dete zatvarača; ovde ista geometrija proceduralno, pa koreografija otvaranja radi i bez GLB-a).
  *
  * Presek NIJE krug. `LatheGeometry` po definiciji vrti profil oko ose i daje
  * okruglo telo, a bočica laka je zaobljen kvadrat. Zato se posle vrtnje svaki
@@ -17,27 +27,16 @@ import { LatheGeometry, Vector2, type BufferGeometry } from "three";
  * Bez logotipa i bez teksta na modelu — tako traži i brief i `docs/3D-ASSETS.md`.
  */
 
+export { BODY_HEIGHT, LIQUID_LEVEL_RATIO, TOTAL_HEIGHT } from "@/lib/bottleDims";
+
 /** Segmenata po obimu. 64 je dovoljno da se superelipsa ne vidi kao poligon. */
 const RADIAL_SEGMENTS = 64;
 
 /** Debljina zida stakla — za koliko je tečnost uvučena u odnosu na profil. */
 const WALL = 0.13;
 
-/** Visina tela (staklo). Dno je u y=0. */
-export const BODY_HEIGHT = 6.0;
-
-/** Ukupna visina modela sa zatvaračem, u jedinicama. */
-export const TOTAL_HEIGHT = 9.48;
-
-/** Vrh vrata (zatvorena pločica) — tu se hvata kap u heroju (spec 13 → E). */
+/** Vrh vrata (zatvorena pločica). */
 export const NECK_TOP_Y = 5.99;
-
-/**
- * Nivo tečnosti — 78 % visine tela (spec 13 → F). Od koraka 13 nivo NE daje geometrija:
- * mesh `Liquid` je puna unutrašnjost stakla, a nivo seče svetska clipping ravan
- * (`liquidLevel.ts`), pa površina ostaje ravna dok se bočica naginje.
- */
-export const LIQUID_LEVEL_RATIO = 0.78;
 
 /** Do koje visine ide mesh tečnosti: tik ispod usnika, da se ne poklopi sa zatvaranjem vrha. */
 const LIQUID_MESH_TOP = 5.9;
@@ -60,14 +59,7 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
 }
 
 /** Deo kruga u ravni profila — zaobljena ivica dna, ramena ili vrha zatvarača. */
-function arc(
-  cx: number,
-  cy: number,
-  radius: number,
-  from: number,
-  to: number,
-  steps: number,
-): Point[] {
+function arc(cx: number, cy: number, radius: number, from: number, to: number, steps: number): Point[] {
   const out: Point[] = [];
   for (let i = 1; i <= steps; i += 1) {
     const a = lerp(from, to, i / steps);
@@ -77,13 +69,7 @@ function arc(
 }
 
 /** Kubna Bezijeova kriva u ravni profila — rame bočice. */
-function bezier(
-  p0: Point,
-  p1: Point,
-  p2: Point,
-  p3: Point,
-  steps: number,
-): Point[] {
+function bezier(p0: Point, p1: Point, p2: Point, p3: Point, steps: number): Point[] {
   const out: Point[] = [];
   for (let i = 1; i <= steps; i += 1) {
     const t = i / steps;
@@ -121,8 +107,8 @@ function glassProfile(): Point[] {
     [0.48, 5.9],
     // usnik i zatvaranje vrha
     [0.53, 5.94],
-    [0.53, 5.99],
-    [0, 5.99],
+    [0.53, NECK_TOP_Y],
+    [0, NECK_TOP_Y],
   ];
 }
 
@@ -175,11 +161,7 @@ function squircle(geometry: BufferGeometry): BufferGeometry {
     const r = Math.hypot(x, z);
     if (r < 1e-5) continue;
 
-    const n = lerp(
-      SQUIRCLE_POWER,
-      2,
-      smoothstep(SQUIRCLE_FROM_Y, SQUIRCLE_TO_Y, y),
-    );
+    const n = lerp(SQUIRCLE_POWER, 2, smoothstep(SQUIRCLE_FROM_Y, SQUIRCLE_TO_Y, y));
     const c = Math.abs(x / r);
     const s = Math.abs(z / r);
     const k = 1 / Math.pow(Math.pow(c, n) + Math.pow(s, n), 1 / n);
@@ -198,19 +180,41 @@ function lathe(profile: Point[], segments = RADIAL_SEGMENTS): LatheGeometry {
   );
 }
 
+export type BrushGeometries = {
+  /** Stem: cilindar od donje strane zatvarača do dlačica. */
+  stem: BufferGeometry;
+  /** Dlačice: zarubljena kupa, spljoštena po x (ravna četkica), vrh na `BRUSH_TIP_Y`. */
+  hair: BufferGeometry;
+};
+
+/** Četkica (spec 14 → B0), u istim jedinicama modela (dno bočice u y = 0). */
+export function createBrushGeometries(): BrushGeometries {
+  const stemLength = STEM_TOP_Y - HAIR_TOP_Y;
+  const stem = new CylinderGeometry(STEM_RADIUS, STEM_RADIUS, stemLength, 16, 1, false);
+  stem.translate(0, HAIR_TOP_Y + stemLength / 2, 0);
+
+  const hair = new CylinderGeometry(HAIR_RADIUS_TOP, HAIR_RADIUS_TIP, HAIR_LENGTH, 24, 6, false);
+  hair.translate(0, BRUSH_TIP_Y + HAIR_LENGTH / 2, 0);
+  hair.scale(HAIR_FLAT_X, 1, 1);
+  // Neujednačena skala iskrivi normale iz konstruktora.
+  hair.computeVertexNormals();
+  return { stem, hair };
+}
+
 /**
- * Tri mreže bočice. Zove se jednom po platnu i rezultat se drži u `useMemo` —
+ * Pet mreža bočice. Zove se jednom po platnu i rezultat se drži u `useMemo` —
  * geometrije nose GPU bafere i moraju da se oslobode (`dispose`) pri gašenju.
  */
 export function createBottleGeometries(): {
   glass: BufferGeometry;
   liquid: BufferGeometry;
   cap: BufferGeometry;
-} {
+} & BrushGeometries {
   return {
     glass: squircle(lathe(glassProfile())),
     liquid: squircle(lathe(liquidProfile())),
     // Zatvarač ostaje okrugao: staklo je kvadratasto, kapica nije — tako izgleda i prava bočica.
     cap: lathe(capProfile(), 48),
+    ...createBrushGeometries(),
   };
 }

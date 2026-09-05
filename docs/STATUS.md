@@ -1,8 +1,168 @@
 # STATUS
 
+Stanje posle koraka **14 — hero koreografija v3: logo se prepisuje slovo po slovo, potpis se
+briše i ponovo piše, bočica se otvara, kap sa četkice, spuštanje na policu** (ispod: korak 13,
+pa 12, pa 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta radi, šta ne radi,
+i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 14 — šta je dodato
+
+Arhitektura iz koraka 13 (zona 170 vh + sticky stage, jedan scrub, `p` čista funkcija, boje,
+IG nav) **nije dirana**; promenjeno je samo šta se dešava. Tvrda pravila važe: bez pina, bez
+Flip-a, bez zaključavanja skrola, `.pin-spacer` 0, reload usred zone = isto stanje.
+
+### A — logo se prepisuje (`lib/logoTravel.ts`, `lib/logoSignature.ts`, `components/hero/Hero.tsx`, `components/brand/Logo.tsx`, `LogoSignature.tsx`, `components/site/SiteNavClient.tsx`)
+
+- **Slovo po slovo.** Svaki od 6 glifova BEAUTY (`data-glyph="b0..b5"`, samo u `animate` /
+  `writable` varijantama loga) dobija svoj `transform` atribut iz izmerenih pravougaonika (hero glif
+  → nav glif, merenje u `onRefreshInit`, px → SVG jedinice kroz `viewBox`): prozor 0.06 + 0.015·i →
+  0.24 + 0.015·i, expo.inOut, kvadratni bezier sa kontrolnom tačkom podignutom 12 % dužine puta,
+  overshoot skale 1.04 → 1 u poslednjih 15 %. Nav glif se pali u istom frejmu kad hero glif sleti —
+  nav wordmark se sastavlja s leva na desno; fini prolaz 0.05–0.34 (korak 0.005) nema nijedan frejm
+  sa istim slovom dvaput vidljivim. Hero SVG je `overflow: visible` (`.hero-wordmark svg`) — bez toga
+  glif izvan sopstvenog viewBox-a nestaje (nađeno u proveri).
+- **Potpis.** Hero rukopis se briše 0.10–0.20 (glifovi s6 → s0, `stroke-dashoffset 0 → L`, popuna
+  nestaje u prvih 30 % glifa); tačka tinte (6 px, `--rose`, `#nav-ink-dot` u nav traci — iznad
+  frosta) jaše na frontu brisanja, 0.20–0.24 leti bezier-om na glavu nav „b", 0.24–0.36 jaše na
+  frontu pisanja (`getPointAtLength(L − offset)`, 1 poziv po frejmu; CTM oba potpisa izmereni u
+  `onRefreshInit`), nestaje na 0.36. Nav wordmark na landingu je `writable` (stroke atributi bez
+  `pending` skrivanja). Intro ispis (`LogoSignature`) dobija `introRef.finish()` i prekida se čim `p`
+  preuzme putanje — nikad dva pisca.
+- **Frost iz slota.** Podloga frosta je `.nav-frost::before` sa `clip-path: var(--frost-clip)`;
+  hero piše `inset(0 X% 0 0)` 100 → 0 (0.30–0.42, power2.out). Blur ispod isečenog dela je aktivan.
+- **Reflow.** h1, lead, CTA red i strip klize nagore za `copy.top − wordmark.top` (0.12–0.30 h1,
+  +0.02 po elementu, power3.inOut); ništa ne bledi do 0.55. Bez puta (mark ispod 400 px) reflow ide
+  0.30–0.48, posle zamene.
+- **Izlaz reč po reč.** `revealWords` u introu više ne `settle`-uje — `.reveal-word` spanovi ostaju
+  i `apply(p)` ih vozi: strip 0.55–0.65, reči lead-a 0.56–0.72, CTA 0.60–0.78, reči h1 0.62–0.80,
+  od poslednje ka prvoj (`y +18`, opacity 0, power2.in). Kontejner `hidden` na 0.85 kao pre.
+  docs/MOTION.md: hero poseduje izlaz reči; provera na dnu = `.reveal-word` VAN `#hero` = 0.
+
+### B — bočica se otvara i spušta (`scripts/bottle.py`, `lib/bottleDims.ts`, `components/three/{bottleGeometry,bottleGlb,BottleModel,HeroBottle}.tsx`)
+
+- **Model (Blender MCP).** `build()` u `scripts/bottle.py` dodaje `BrushStem` (cilindar r 0,14,
+  2,0 → 6,2) i `BrushHair` (zarubljena kupa r 0,25 → 0,09, eliptičan presek 1,35× po x, vrh na 92 %
+  dubine tečnosti = y 0,503) kao DECU `Cap`-a; materijal bela baza, roughness 0,25, coat 0,6.
+  Modifikatori se primenjuju kroz depsgraph (`apply_modifiers`, bez operatora), export u
+  `temp_override` sa pravim prozorom — MCP kontekst nema `active_object`, pa je `convert` ćutke
+  preskakao a glTF exporter padao. `gltf-transform inspect`: **72,5 KB**, Glass 29.952 + Liquid
+  3.968 + Cap 2.240 + BrushHair 336 + BrushStem 64 = **36.560 trouglova** (≤ 40k), Draco, čvor `Cap`
+  ima decu `[BrushHair, BrushStem]`, svi čvorovi bez translacije/rotacije. Provera siluete: Eevee
+  render u fajl (zatvoreno + zatvarač podignut 5,8).
+- **Mere na jednom mestu:** `lib/bottleDims.ts` (bez three) — `CAP_LIFT_OUT = NECK_TOP + 0,3 −
+  BRUSH_TIP_Y = 5,80`, `CAP_PIVOT_Y 7,68`; Blender skripta ponavlja iste formule. `bottleGlb.ts` čita
+  četkicu opciono (stari GLB → proceduralna četkica iz `createBrushGeometries`).
+- **Zatvarač je grupa sa pivotom u svojoj sredini** (`capRef`), pa se odvrće oko ose bočice
+  (720° 0.04–0.22), diže dok dlačice ne izađu iz vrata + 0,3 (telo pada za ½ lifta), odlazi 2 %
+  ulevo i naginje se −25° oko SVETSKE z ose o pivotu (kvaternioni: `capLocal = inv(body)·tilt·
+  body·spin`), vraća se 0.58–0.64 i zavrće 360° 0.64–0.74. Nivo tečnosti −3 % dok je stem napolju.
+  Dlačice i stem su u boji tečnosti (clearcoat 0,5 na dlačicama).
+- **Kamera** fov 30 → 34 (0.04–0.22) → 30 (0.42–0.58), `updateProjectionMatrix` samo na promenu.
+- **Kap** raste na vrhu dlačica 0.24–0.32 (mesh uvek nacrtan), otkači se sa x/z iz determinističke
+  poze (scratch `Object3D` par, ista `applyPose`, bez idle/pointer/hover/wobble), pada t² do NDC −1,15
+  do 0.42; `uPourOrigin` = vrh na 0.32 projektovan kamerom kakva je bila na 0.32 (zamrznuta
+  `PerspectiveCamera`), pa dolly nazad ne pomera centar razlivanja. Stara kap sa zatvarača uklonjena.
+- **Idle:** rim `directionalLight` kruži −60° → +60° oko prednje strane sa intenzitetom `sin(π·s)`
+  za fazu ciklusa 0.70 → 1 (crossfade boje je 0.78 → 1), jednom po holdu (izmereno: pali se u fazi
+  0.72–0.99, max 1,8); key svetlo prati pointer ±15 %; hover diže zatvarač 0,15 oprugom (2,5 Hz,
+  ζ 0,45) — izmereno 0,15 na hoveru, 0 posle. Pointer parallax i hover skala se gase do 0.20.
+- **Razlivanje** kao u 13 + `envMapIntensity` 0,6 → 0,9 (0.40–0.50) → 0,6 (0.78) kroz
+  `envIntensityRef` na svih pet materijala.
+- **Polica:** `bottleScreen(p)` (`lib/heroChoreography.ts`) je jedina istina o mestu bočice na
+  ekranu: baza 0.62–0.70 sleće na ivicu `.hero-overlap` (u stage-u `stageH − lag(p)`, na ekranu
+  `H·(1 − p)`), skala 1 → 0,55 O BAZI i x 75 % → 70 % do 0.78; od 0.70 baza je tačno ivica i bočica
+  odlazi sa sekcijom kroz vrh, bez fade-a. Kontakt senka `#hero-shelf-shadow` (DOM elipsa u
+  `.hero-overlap`, opacity 0.70–0.80) — vozi je `HeroBottle` iz istih brojeva.
+- Izlazni `alphaHash`/opacity fade je uklonjen; materijali tečnosti i zatvarača su neprovidni.
+
+### C — veo u tamnoj temi (`components/hero/Hero.tsx`, `app/globals.css`)
+
+Uzrok: između `HeroFallback` (svetao) i prvog frejma lenjog `LiquidCanvas` omotač nije imao
+podlogu, pa se videla tamna `--bg` strane, a papirni veo preko nje bio je siva mrlja. Sada je
+`HeroFallback` UVEK ispod canvasa — podloga heroja je svetla u sve tri grane i obe teme (screenshoti
+1440 / 900 / 390 u tamnoj temi). Usput: u tamnoj temi je nav preko svetlog heroja (bez frosta) imao
+svetla slova na svetlom laku — `:root[data-theme="dark"] .nav-bar:not(.nav-frost)` sada daje
+`--fg: var(--ink)` (izmereno `rgb(18,16,15)` na sva tri ekrana), a kad frost stigne vraća se tema.
+
+### Odluke koje odstupaju od slova speca
+
+| # | Odluka | Zašto |
+| --- | --- | --- |
+| 1 | kamera **dolly-OUT** fov 30 → 34 (0.04–0.22) i nazad 34 → 30 (0.42–0.58), ne 30 → 27; telo pada za ½ lifta | vrh dlačica na 92 % dubine (y 0,50) → lift 5,80; bočica 9,48 + 5,80 = 15,3 jed. ne staje u 15 jed. kadra na fov 30, a na fov 27 (13,5) zatvarač izlazi iz kadra; na 34 sa spuštenim telom ostaje ~1 jed. margine gore i dole (mereno na 0.22) |
+| 2 | potpis se briše 0.10–**0.20** (ne 0.26); tačka jaše na frontu brisanja od 0.10, leti 0.20–0.24, piše 0.24–0.36 | jedna olovka — spec je imao brisanje do 0.26 i pisanje od 0.24 istovremeno; tačka koja „pokupi" tintu objašnjava zašto potpis nestaje. D.2 i dalje važi (0.18: 80 % izbrisano, nav 0; 0.30: 50 % napisano) |
+| 3 | reflow copy-ja 0.**12**–0.30 (h1), +0.02 po elementu, ne 0.06–0.30 | sa 0.06 h1 na 0.18–0.22 ulazi u prostor gde „U T Y" još stoje (expo.inOut prvih 40 % skoro miruje); sa 0.12 margina ≥ 20 px; h1 završava tačno na 0.30, pa D.4 ostaje tačan |
+| 4 | izlaz: strip 0.55–0.65 → reči lead-a 0.56–0.72 → CTA 0.60–0.78 (spec) → reči h1 0.62–0.80 | obrnut redosled čitanja; reči idu od poslednje ka prvoj |
+| 5 | CTM oba potpisa meri se u `onRefreshInit`, ne po frejmu | stage miruje dok se briše (0.20 < HOLD_END 0.23 i na 130 vh), traka nije sakrivena dok je hero u kadru — 0 CTM poziva po frejmu, `getPointAtLength` 1 |
+| 6 | frost clip na `.nav-frost::before`, ne na `.nav-bar` | clip na traci bi sekao i linkove desno; pseudo-element nosi samo podlogu, hairline i blur |
+| 7 | kontakt senka je DOM elipsa u `.hero-overlap`, vozi je `HeroBottle` | canvas je u stage-u ISPOD omotača — ravan u sceni bi bila pokrivena, a uz kameru u nivou horizontalna ravan je linija; u `HeroBottle`-u (lenji chunk) da matematika bočice ne uđe u početni JS |
+| 8 | baza prati ivicu od kontakta: 0.62–0.70 blend rest → ivica, od 0.70 tačno ivica | ivica u stage-u je `stageH − lag(p)` i bazu (81 % vh) dostiže tek na p ≈ 0.70; „spuštanje" 0.62–0.70 je sletanje na ploču koja se diže; D.7 je egzaktan (≤ 1 px) |
+| 9 | bočica čita **sirov** `p`, bez lerp-a 0.12 | polica mora da prati DOM ivicu frejm za frejmom; shader zadržava svoj lerp |
+| 10 | pointer parallax i hover skala gase se 0.04–0.20; njihanje ±2° samo dok je zatvarač NAD vratom | ishodište razlivanja i tačka otkačenja moraju biti deterministički (reload = isto); sa njihanjem je kap na 0.32 skakala 11 px u stranu (izmereno) |
+| 11 | zatvarač ide **2 %** kadra ulevo (spec 12 %) + nagib −25° o pivotu | nagib sam nosi vrh dlačica ~11 % kadra ulevo; sa 12 % + nagib stem i vrh su prelazili preko lead pasusa (mereno 1440: vrh 693 px, tekst do 816). Sada vrh 840 px, 24 px desno od teksta, i dalje „ka copy koloni" |
+| 12 | izlazni fade uklonjen za obe varijante (GLB i proceduralna) | proceduralna bočica dobija istu četkicu, pa ista koreografija radi bez GLB-a; neprovidni materijali = jeftiniji transmission prolaz |
+| 13 | `.reveal-word` spanovi u heroju ostaju (`settle: false`) | izlaz reč po reč traži spanove; provera iz MOTION.md: `.reveal-word` van `#hero` = 0 |
+| 14 | tamna tema: `--fg` na `.nav-bar:not(.nav-frost)` = `--ink` | traka je providna preko svetlog heroja; svetla slova tamne teme na svetlom laku nisu bila čitljiva (pre koraka 14 takođe) |
+| 15 | atributi loga kroz uslovni spread, `data-glyph` samo u `animate`/`writable` | satori (icon/OG rute) na `prop={undefined}` pada BEZ odgovora (`ERR_EMPTY_RESPONSE`, reprodukovano A/B sa `git stash`); posle popravke `/icon` 200 (117 B), `/opengraph-image` 200 (35 KB) |
+| 16 | početni JS `/` +3,2 KB umesto ≤ +3 KB — **isporučeno sa prekoračenjem od 0,2 KB** | jedina preostala ušteda bi bila lenjo učitavanje matematike slova/potpisa (~1 KB), a ona mora da bude tu već u `onRefresh` (reload na p 0.5 bi jedan frejm pokazao hero bez slova u nav-u — krši „reload = isto stanje"). Ako je granica tvrda, kandidat za sečenje je tačka tinte + let (`lib/logoSignature.ts` dot/fly, ~0,3 KB) — odluka za jutro |
+
+### Provera D (Playwright, pravi točkić, dev server http://localhost:3001 paralelne sesije — nije gašen)
+
+| # | Provera | 1440×900 | 390×844 (+ 900×700) |
+| --- | --- | --- | --- |
+| 1 | slova | 0.12 sva u miru (t ≤ 0.34); 0.20 B/E/A uz slot, U/T/Y u luku; 0.28 BEA sletela (hero 0 / nav 1), U/T/Y t 0.97/0.89/0.80; 0.32 svih 6; fini prolaz 0.05–0.34 korak 0.005: **0** frejmova sa istim slovom dvaput, sletanje s leva | 390: bez puta, zamena 0.29 → 0.31 (wm `hidden`, mark 1); 900: 0 prekršaja, na 0.33 svih 6 sletelo |
+| 2 | potpis + tačka | 0.18 hero 80 % izbrisan / nav 0; 0.30 nav 50 % napisan; tačka vidljiva 0.12–0.34, razdaljina do DOM fronta pisanja **0,03 px** (0.26 / 0.28 / 0.30 / 0.34); 0.36 tačka `hidden` | 390: mark, nema potpisa; 900: nav potpis 75 % na 0.33 |
+| 3 | frost | `::before` clip `inset(0 99.8% 0 0)` na 0.30, `24.8 %` na 0.36, `0 %` na 0.42; `backdrop-filter: blur(14px) saturate(1.4)` | 390/900: isto pravilo, 900 na 0.33 `55.7 %` |
+| 4 | reflow | h1 top 434,4 (p 0) → **209,3 = wordmark top** (p 0.30); pomeraj 225,1 = 185,1 + 40 | 390: 237,3 → −38,0 = wordmark top na 0.48 |
+| 5 | otvaranje | 0.22: spin **720,0°**, lift 5,80, vrh dlačica y −1,31 > vrat −1,61 (+0,30); 0.74: spin 360, lift 0 | — |
+| 6 | kap | 0.30 kap na vrhu dlačica (screenshot), vrh na x 840 px, lead pasus do 816; `uPourOrigin.x` 0,595 stalan od 0.32 | 390: DOM kap pada 0.32–0.42 (220 → 377 → 728 px, `hidden` na 0.42), prosipanje 0.06 @0.42, 0.61 @0.60, 1 @0.78 |
+| 7 | polica | baza (stage px) + stageTop vs ivica `.hero-overlap`: 0.70 458,9 / 458,8; 0.85 229,4 / 229,2; 0.95 76,2 / 75,6 → **≤ 1 px** | — |
+| 8 | reload 0.5 i 0.8 | 17 polja identična pre/posle (slova, potpis, captured, spin, lift, baza, fov, frost, h1 top, pour, origin, ink, reč) | — |
+| 9 | struktura | `.pin-spacer` 0; `body.overflow` ''; bez `lenis-stopped`; dno posle 4,5 s: pending 0, `data-reveal-motion=pending` 0, `.reveal-word` van heroja 0 (u heroju 25), sakriven tekst 0; IG nav: gore → vidljiva, 2×200 px dole → sakrivena, 60 px gore → vidljiva | 390: `scrollWidth − clientWidth` = 0 |
+| 10 | tamna tema | screenshot: podloga svetla, bez mrlje, nav linkovi `rgb(18,16,15)` | 900 (shader bez bočice) i 390 (CSS): isto |
+| 11 | perf, 146 Hz, `bringToFront`, `visibilityState` visible; točkić kroz zonu (30 × 55 px / 100 ms) | prolaz 1: 501 frejmova / 4,66 s, medijana 7 ms, **p95 14 ms**, najduži 21 ms, 0 > 33; prolaz 2: 619 / 4,34 s, medijana 6,9, **p95 7,1 ms**, najduži 41,8 (1 > 33 — isto kao GLB prolaz u 13) | — |
+| 12 | interakcija | hover: zatvarač 0,15 → 0 (opruga), kursor pointer; rim sweep u fazi 0.72–0.99 svakog perioda, max 1,8; `/shop`: 1 canvas, bočica sa cap grupom, frost, nav potpis pun | — |
+
+Konzola: 0 grešaka; upozorenja `THREE.Clock` (R3F, od ranije) i jedno D3D `X4122` (konstantno
+sklapanje u shaderu tečnosti, bezopasno).
+
+```
+npm run typecheck   ✓
+npm run lint        ✓  (nula upozorenja)
+npm test            ✓  212 testova, 14 fajlova (+21: v3 segmenti, slova, potpis, polica, reflow, izlaz reči)
+npm run build       ✓  83 strane, icon / apple-icon / opengraph-image generisani
+```
+
+Bundle (`scripts/measure-bundle.mjs` + gzip lenjih chunkova; „pre" je HEAD koraka 13 izgrađen
+istim alatom u istoj sesiji — 326,8 KB, tačno kao u tabeli koraka 13):
+
+| Šta | Pre (korak 13) | Posle | Razlika |
+| --- | --- | --- | --- |
+| `/` početni JS | 326,8 KB | 330,0 KB | **+3,2 KB** (granica +3 KB — 0,2 KB preko, vidi odluku 16) |
+| `/shop` početni JS | 300,0 KB | 300,1 KB | +0,1 KB |
+| lenji three chunk (three + hero shader + bočica + četkica + GLB čitač) | 236,5 KB | 236,9 KB | +0,4 KB |
+| lenji hero chunk | 5,4 KB | 6,9 KB | +1,5 KB (ukupno lenjo 243,7 KB = **+1,9 KB**, granica +10 KB) |
+| `public/models/bocica.glb` | 69,6 KB, 36.160 △ | 72,5 KB, 36.560 △ | +2,9 KB, +400 △ (granica 500 KB / 40k) |
+
+Šta je probano za tih 0,2 KB: senka police preseljena u lenji chunk (−0,2 KB), matematika bočice
+izdvojena u `lib/bottleScreen.ts` da mere ne uđu u početni JS (−0,4 KB), neiskorišćeni exporti
+(Turbopack ih ionako baca — 0), dev snimak iza runtime guard-a (+0,1 KB, vraćeno na
+`process.env.NODE_ENV`). Ostatak su slova, potpis, tačka, reflow i izlaz reči — sve mora u početni
+JS jer `apply(p)` radi već iz `onRefresh` (reload usred zone), pre nego što bilo koji lenji chunk stigne.
+
+### Šta čeka / napomene
+
+| Šta | Zašto |
+| --- | --- |
+| **[POTVRDITI]** pet boja ciklusa, 3D na telefonu, telefon Mimoze — iz koraka 13 | nepromenjeno |
+| Frost se širi tvrdom ivicom (`clip-path: inset`) | spec traži inset; meka ivica bi tražila `mask-image` preko `backdrop-filter`-a — jedan CSS red ako zatreba |
+| Zatvarač u fazi 0.22–0.58 ulazi pod nav traku (vrh na ~20 px) | od 0.30 je pod frostom (blur) — namerno ostavljeno; ako smeta, `CAP_AWAY_Y_RATIO` u minus ili fov 35 |
+| Kap na 390 pada 0.32–0.42 (bilo 0.30–0.40) | isti `fall` kao 3D kap; prosipanje i dalje od 0.36 |
+| `docs/MOTION.md` → „Hero v3" | prepisano; provera na dnu sada dozvoljava `.reveal-word` unutar `#hero` |
+
+---
+
 Stanje posle koraka **13 — hero zona sa zadržavanjem, boje laka, kap i razlivanje, navigacija
 uvek ispred + Instagram nav** (ispod: korak 12, pa 11, pa zatečeno stanje posle koraka 08).
-Ovo je lista za jutro: šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
 
 ## Korak 13 — šta je dodato
 

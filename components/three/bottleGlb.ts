@@ -2,13 +2,17 @@ import { BufferGeometry } from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 /**
- * Učitavanje `public/models/bocica.glb` (Blender, spec 13 → I) BEZ GLTFLoader-a.
+ * Učitavanje `public/models/bocica.glb` (Blender, spec 13 → I, četkica spec 14 → B0) BEZ GLTFLoader-a.
  *
  * drei `useGLTF` povlači GLTFLoader + DRACOLoader + suspend-react: izmereno +21,9 KB gzip na
- * lenjem WebGL chunku, a budžet iz speca (J.11) je +15 KB. Naš GLB je jednostavan — tri mesha,
+ * lenjem WebGL chunku, a budžet iz speca (J.11) je +15 KB. Naš GLB je jednostavan — pet meshova,
  * bez tekstura, skeleta i animacija, geometrija Draco-komprimovana — pa ga čita ovih pedeset
  * linija: GLB kontejner (JSON + BIN chunk) → `KHR_draco_mesh_compression` → `DRACOLoader`
  * (isti dekoder iz `public/draco/` koji bi koristio i GLTFLoader). Ukupno ≈ +5 KB gzip.
+ *
+ * Četkica (`BrushStem`, `BrushHair`) je u GLB-u dete `Cap`-a sa identičnim transformom (sve je
+ * primenjeno pre exporta), pa se njena geometrija čita isto kao ostale — u koordinatama modela.
+ * Ako je stari GLB nema, `null`: `BottleModel` tada uzima proceduralnu četkicu.
  *
  * Jedan fetch i jedno dekodiranje po strani (keš), geometrije dele hero i zid shopa.
  * `preloadBottleGlb()` se zove pri učitavanju lenjog chunka (ono što radi `useGLTF.preload`).
@@ -18,6 +22,8 @@ export type BottleGeometries = {
   readonly glass: BufferGeometry;
   readonly liquid: BufferGeometry;
   readonly cap: BufferGeometry;
+  readonly stem: BufferGeometry | null;
+  readonly hair: BufferGeometry | null;
 };
 
 export const BOTTLE_GLB_URL = "/models/bocica.glb";
@@ -27,7 +33,7 @@ const CHUNK_JSON = 0x4e4f534a;
 const CHUNK_BIN = 0x004e4942;
 
 type GltfJson = {
-  nodes?: { name?: string; mesh?: number }[];
+  nodes?: { name?: string; mesh?: number; children?: number[] }[];
   meshes?: {
     name?: string;
     primitives: {
@@ -106,6 +112,12 @@ async function decodeMesh(json: GltfJson, bin: ArrayBuffer, nodeName: string): P
   return geometry;
 }
 
+/** Opcioni čvor (četkica u starijem GLB-u ne postoji): `null` umesto greške. */
+function decodeOptional(json: GltfJson, bin: ArrayBuffer, nodeName: string): Promise<BufferGeometry | null> {
+  if (!json.nodes?.some((n) => n.name === nodeName)) return Promise.resolve(null);
+  return decodeMesh(json, bin, nodeName);
+}
+
 /** Fetch + dekodiranje, keširano; greška ostaje u promise-u (Suspense boundary je hvata). */
 export function loadBottleGlb(): Promise<BottleGeometries> {
   if (!pending) {
@@ -113,12 +125,14 @@ export function loadBottleGlb(): Promise<BottleGeometries> {
       const response = await fetch(BOTTLE_GLB_URL);
       if (!response.ok) throw new Error(`bocica.glb: HTTP ${response.status}`);
       const { json, bin } = parseGlb(await response.arrayBuffer());
-      const [glass, liquid, cap] = await Promise.all([
+      const [glass, liquid, cap, stem, hair] = await Promise.all([
         decodeMesh(json, bin, "Glass"),
         decodeMesh(json, bin, "Liquid"),
         decodeMesh(json, bin, "Cap"),
+        decodeOptional(json, bin, "BrushStem"),
+        decodeOptional(json, bin, "BrushHair"),
       ]);
-      return { glass, liquid, cap };
+      return { glass, liquid, cap, stem, hair };
     })();
     pending.catch(() => {
       // Pao fetch/dekoder: sledeći pokušaj (npr. nova strana) kreće iznova.

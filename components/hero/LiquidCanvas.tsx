@@ -168,13 +168,8 @@ export default function LiquidCanvas({
         <FrameGate active={active} />
         <ColorDriver drivers={drivers} liquid={liquid} />
         <LiquidPlane drivers={drivers} liquid={liquid} />
-        {bottle ? (
-          <>
-            {/* Jedno key svetlo gore-desno; odsjaje daje studio okruženje u BottleModel-u. */}
-            <directionalLight position={[6, 8, 5]} intensity={1.1} />
-            <HeroBottle drivers={drivers} liquid={liquid} />
-          </>
-        ) : null}
+        {/* Svetla (key + rim sweep) su u HeroBottle — ona ih vozi po frejmu. */}
+        {bottle ? <HeroBottle drivers={drivers} liquid={liquid} /> : null}
       </Canvas>
     </div>
   );

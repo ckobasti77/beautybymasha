@@ -53,6 +53,21 @@ GLASS_SEGMENTS = 24    # + Subdivision 2 = glatko; više segmenata sa subdiv 2 p
 LIQUID_SEGMENTS = 32
 CAP_SEGMENTS = 80      # žlebovi traže gustinu po obimu
 
+# --- četkica (spec 14 → B0) — iste formule kao lib/bottleDims.ts ------------
+LIQUID_LEVEL_Y = 6.0 * 0.78          # nivo tečnosti, 78 % tela
+INNER_BOTTOM_Y = 0.14                # zid 0,12 + razmak 0,02
+BRUSH_DEPTH_RATIO = 0.92             # vrh dlačica na 92 % dubine tečnosti
+BRUSH_TIP_Y = LIQUID_LEVEL_Y - BRUSH_DEPTH_RATIO * (LIQUID_LEVEL_Y - INNER_BOTTOM_Y)
+HAIR_LENGTH = 1.5
+HAIR_TOP_Y = BRUSH_TIP_Y + HAIR_LENGTH
+STEM_TOP_Y = 6.2                     # stem ulazi u zatvarač (spoj sakriven)
+STEM_R = 0.14                        # d 0,28
+HAIR_R_TOP = 0.25                    # d 0,5
+HAIR_R_TIP = 0.09                    # d 0,18
+HAIR_FLAT_X = 1.35                   # ravna četkica: elipsa, x osa 1,35×
+STEM_SEGMENTS = 16
+HAIR_SEGMENTS = 24
+
 
 def smoothstep(e0, e1, x):
     t = min(1.0, max(0.0, (x - e0) / (e1 - e0)))
@@ -171,15 +186,45 @@ def build():
     cap_ys = [CAP_BOTTOM, 6.0, 6.2, 6.4, 7.0, 7.7, 8.4, 8.9, 9.1, 9.25, 9.36, 9.43, 9.47, CAP_TOP]
     cap = loft("Cap", cap_ys, cap_radius, CAP_SEGMENTS)
 
+    # Četkica (spec 14 → B0): stem od donje strane zatvarača, dlačice = zarubljena kupa spljoštena
+    # po x (elipsa u preseku, ne scale — pa su normale tačne). Oba su DECA zatvarača: hero ih
+    # odvrće, diže i naginje zajedno sa njim. Imena TAČNO ova (čita ih bottleGlb.ts).
+    stem = loft("BrushStem", [HAIR_TOP_Y, STEM_TOP_Y], lambda th, y: STEM_R, STEM_SEGMENTS)
+    hair = loft("BrushHair", [BRUSH_TIP_Y + HAIR_LENGTH * k / 6 for k in range(7)], hair_radius, HAIR_SEGMENTS)
+    for child in (stem, hair):
+        child.parent = cap
+        child.matrix_parent_inverse = cap.matrix_world.inverted()
+
     glass.data.materials.append(material("Glass", **{"Base Color": (1, 1, 1, 1), "Roughness": 0.04, "IOR": 1.45, "Transmission Weight": 1.0}))
     liquid.data.materials.append(material("Liquid", **{"Base Color": (1, 1, 1, 1), "Roughness": 0.12}))
     cap.data.materials.append(material("Cap", **{"Base Color": (0.006, 0.005, 0.004, 1), "Roughness": 0.35, "Metallic": 0.1}))
+    brush = material("Brush", **{"Base Color": (1, 1, 1, 1), "Roughness": 0.25, "Coat Weight": 0.6})
+    stem.data.materials.append(brush)
+    hair.data.materials.append(brush)
 
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = glass
-    return {"objects": [o.name for o in scene.objects], "glass_faces": len(glass.data.polygons), "liquid_faces": len(liquid.data.polygons), "cap_faces": len(cap.data.polygons)}
+    return {
+        "objects": [o.name for o in scene.objects],
+        "parents": {o.name: (o.parent.name if o.parent else None) for o in scene.objects},
+        "glass_faces": len(glass.data.polygons),
+        "liquid_faces": len(liquid.data.polygons),
+        "cap_faces": len(cap.data.polygons),
+        "stem_faces": len(stem.data.polygons),
+        "hair_faces": len(hair.data.polygons),
+        "brush_tip_y": BRUSH_TIP_Y,
+    }
+
+
+def hair_radius(theta, y):
+    """Zarubljena kupa (vrh dole) sa eliptičnim presekom: x osa 1,35× — ravna četkica za lak."""
+    r = lerp(HAIR_R_TIP, HAIR_R_TOP, (y - BRUSH_TIP_Y) / HAIR_LENGTH)
+    a = r * HAIR_FLAT_X
+    b = r
+    c, s = math.cos(theta), math.sin(theta)
+    return 1.0 / math.sqrt((c * c) / (a * a) + (s * s) / (b * b))
 
 
 def evaluated_triangles():
@@ -227,31 +272,58 @@ def preview_render(path):
     return {"rendered": os.path.exists(path)}
 
 
+def _ui_context():
+    """MCP izvršava kod BEZ prozora: `bpy.context` tamo nema `active_object`, a operatori
+    (convert, glTF export) ga traže. Pravi prozor/area/region za `temp_override`; headless ({})."""
+    wm = bpy.context.window_manager
+    if not wm or not wm.windows:
+        return {}
+    win = wm.windows[0]
+    area = next((a for a in win.screen.areas if a.type == "VIEW_3D"), win.screen.areas[0])
+    region = next((r for r in area.regions if r.type == "WINDOW"), area.regions[0])
+    return {"window": win, "screen": win.screen, "area": area, "region": region}
+
+
+def apply_modifiers():
+    """Modifikatori → mesh kroz depsgraph (bez operatora, radi i bez prozora): imena Glass/Liquid
+    ostaju na primitivima, a broj trouglova je tačno ono što ide u GLB."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    for o in list(bpy.context.scene.objects):
+        if o.type != "MESH" or not o.modifiers:
+            continue
+        mesh = bpy.data.meshes.new_from_object(o.evaluated_get(dg), depsgraph=dg)
+        old = o.data
+        o.modifiers.clear()
+        o.data = mesh
+        mesh.name = o.name
+        if old.users == 0:
+            bpy.data.meshes.remove(old)
+
+
 def export_glb(path=OUT):
-    """Korak 4 speca: modifikatori → mesh (da imena Glass/Liquid ostanu na primitivima), pa GLB,
-    Draco, Y-up, bez kamera/svetala/animacija."""
+    """Korak 4 speca: modifikatori → mesh, pa GLB, Draco, Y-up, bez kamera/svetala/animacija.
+    Hijerarhija (BrushStem/BrushHair kao deca Cap-a) preživljava export."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    for o in bpy.context.scene.objects:
-        if o.type == "MESH" and o.modifiers:
-            bpy.ops.object.select_all(action="DESELECT")
-            o.select_set(True)
-            bpy.context.view_layer.objects.active = o
-            bpy.ops.object.convert(target="MESH")
-            o.data.name = o.name
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(
-        filepath=path,
-        export_format="GLB",
-        export_draco_mesh_compression_enable=True,
-        export_yup=True,
-        export_apply=True,
-        export_cameras=False,
-        export_lights=False,
-        export_animations=False,
-        export_skins=False,
-        export_morph=False,
-    )
-    bpy.ops.object.select_all(action="DESELECT")
+    apply_modifiers()
+    objs = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    with bpy.context.temp_override(**_ui_context(), active_object=objs[0], selected_objects=objs):
+        bpy.ops.export_scene.gltf(
+            filepath=path,
+            export_format="GLB",
+            export_draco_mesh_compression_enable=True,
+            export_yup=True,
+            export_apply=True,
+            export_cameras=False,
+            export_lights=False,
+            export_animations=False,
+            export_skins=False,
+            export_morph=False,
+        )
+    for o in objs:
+        o.select_set(False)
     return {"path": path, "bytes": os.path.getsize(path), "triangles": evaluated_triangles()}
 
 

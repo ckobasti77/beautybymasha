@@ -133,6 +133,11 @@ export class HeroColorCycle {
     }
   }
 
+  /** Faza unutar perioda (hold + crossfade), 0..1 — crossfade je od COLOR_HOLD / COLOR_PERIOD. */
+  get phase(): number {
+    return this.elapsed / COLOR_PERIOD;
+  }
+
   get blend(): ColorBlend {
     const n = this.colors.length;
     const from = this.colors[this.index];

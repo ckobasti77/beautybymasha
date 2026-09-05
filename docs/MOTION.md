@@ -77,7 +77,7 @@ Sve ulazi **redosledom čitanja**, nikad odjednom:
 Ukupno nikad duže od ~1,2 s od trenutka kad sekcija uđe u kadar. Duže od toga i deluje
 kao da sajt ne radi.
 
-## Hero v2 — zona sa zadržavanjem (korak 13)
+## Hero v3 — zona sa zadržavanjem, logo koji se prepisuje, bočica koja se otvara (korak 14)
 
 Hero je **zona od 170 vh** (mobilni 130 vh, uz `prefers-reduced-motion` 100 vh) sa
 `position: sticky` stage-om od 100 vh unutra. **Bez pina, bez Flip-a, bez zaključavanja
@@ -89,46 +89,65 @@ na vrhu kadra. Posle toga ga sekcija gura naviše, a stage zaostaje do 40 % svoj
 
 ```
 <section id="hero" data-reveal="off" class="relative isolate h-[170vh] max-md:h-[130vh]">
-  <div class="hero-stage sticky top-0 h-[100vh] overflow-hidden">canvas · scrim · wordmark · copy</div>
+  <div class="hero-stage sticky top-0 h-[100vh] overflow-hidden">podloga · canvas · scrim · wordmark · copy</div>
 </section>
+<div class="hero-overlap">#hero-shelf-shadow · sekcije…</div>
 ```
 
 **Jedan ScrollTrigger** (`top top → bottom top`, `scrub`) daje napredak `p`, a sve je
-**čista funkcija tog broja** (`lib/heroChoreography.ts`, testirano): reload usred heroja daje
-isto stanje kao skrol do te tačke. Merenje (wordmark, slot, HOLD_END) ide u `onRefreshInit`;
-`apply(p)` se zove i iz `onRefresh` (na p = 0 `onUpdate` ne okida).
+**čista funkcija tog broja** (`lib/heroChoreography.ts`, `lib/logoTravel.ts`,
+`lib/logoSignature.ts` — testirano): reload usred heroja daje isto stanje kao skrol do te tačke.
+Merenje (rect svakog glifa, CTM oba potpisa, pomeraj copy-ja, HOLD_END) ide u `onRefreshInit`;
+`apply(p)` se zove i iz `onRefresh` (na p = 0 `onUpdate` ne okida). Bočica čita **sirov** `p`
+(bez lerp-a) — polica mora da prati DOM ivicu frejm za frejmom. `bottleScreen(p)`
+(`lib/bottleScreen.ts`, samo three strana i testovi — mere bočice ne ulaze u početni JS) je jedina
+istina o mestu bočice na ekranu: iz nje bočica vozi i svoj položaj i DOM kontakt senku.
 
 | faza | p | šta |
 | --- | --- | --- |
 | hvatanje boje | > 0.01 | ciklus boja staje, uhvaćena boja ide u razlivanje (`lib/heroColors.ts`) |
-| idle gašenje | 0.00–0.10 | lebdenje i yaw bočice se gase |
-| logo put | 0.04–0.30 | wordmark → `#nav-logo-slot`, samo transform (`lib/logoTravel.ts`, expo.out) |
-| crossfade + frost | 0.30–0.36 | wordmark → 0 + `visibility: hidden`, nav logo → 1, `.nav-frost` od 0.30 |
-| nagib | 0.06–0.30 | bočica +55° z, +12° x ka copy-ju |
-| kap | 0.18–0.30 / 0.30–0.40 | raste na vrhu zatvarača / pada do ispod kadra; tačka izlaska = `uPourOrigin` |
-| razlivanje | 0.36–0.78 | shader radijalno razliva uhvaćenu boju (75 % boja + 25 % mint) |
+| idle gašenje | 0.00–0.10 | lebdenje, yaw ±7°, rim sweep; pointer parallax i hover skala do 0.20 |
+| kamera | 0.04–0.22 / 0.42–0.58 | fov 30 → 34 (dolly-out, izvučena četkica mora da stane u kadar) / nazad 30 |
+| yaw | 0.04–0.22 | telo u 3/4 pogled (−25° oko Y), ostaje uspravno; njihanje ±2° dok je četkica nad vratom |
+| otvaranje | 0.04–0.22 | zatvarač 720° oko ose + lift dok dlačice ne izađu iz vrata + 0.3 (iz `lib/bottleDims.ts`); telo −½ lifta; nivo −3 % |
+| slova BEAUTY | 0.06+0.015·i → 0.24+0.015·i | hero glif i → nav glif i, sopstveni `transform` (bezier, kontrolna tačka −12 %), overshoot 1.04 → 1, zamena u frejmu sletanja; nav se sastavlja s leva |
+| potpis | 0.10–0.20 / 0.20–0.24 / 0.24–0.36 | hero rukopis se briše (`dashoffset 0 → L`, s6 → s0) / tačka tinte leti / nav rukopis se piše (s0 → s6, popuna u poslednjih 30 %) |
+| reflow | 0.12–0.30 (+0.02 po elementu) | h1, lead, CTA, strip klize nagore za `copy.top − wordmark.top`; ništa ne bledi do 0.55 |
+| cap odlazi | 0.22–0.30 | zatvarač + četkica: nagib −25° oko svetske z o pivotu, 2 % ulevo — vrh dlačica ~11 % kadra ka copy-ju, ne preko njega |
+| kap | 0.24–0.32 / 0.32–0.42 | raste na vrhu dlačica / pada (t²) do NDC −1.15; `uPourOrigin` = vrh na 0.32 iz determinističke poze, projekcija kamerom sa 0.32 |
+| frost | 0.30–0.42 | `.nav-frost::before` `clip-path: inset(0 X% 0 0)` 100 → 0 iz logo slota (`--frost-clip` na `.nav-bar`) |
+| razlivanje | 0.36–0.78 | shader radijalno razliva uhvaćenu boju (75 % boja + 25 % mint); `envMapIntensity` 0.6 → 0.9 (0.50) → 0.6 |
 | ink | front preko copy-ja | `--hero-ink` po kontrastu (taman ili papir), scrim menja veo |
-| copy izlazi | 0.55–0.85 | KONTEJNER opacity → 0, y → −40 px; CTA ne hvataju klik od 0.55; `hidden` od 0.85 |
-| bočica izlazi | 0.60–1.00 | scale → 0.7, drift ka centru, opacity → 0 (alphaHash) |
+| copy izlazi | 0.55–0.80 | strip 0.55–0.65, reči lead-a 0.56–0.72, CTA 0.60–0.78, reči h1 0.62–0.80; reči od POSLEDNJE ka prvoj (`y +18`, opacity 0); klik gasi 0.55, `hidden` 0.85 |
+| cap se vraća | 0.58–0.64 / 0.64–0.74 | nad vrat / spušta se i zavrće 360° |
+| polica | 0.62–0.70 / 0.62–0.78 | baza sleće na ivicu `.hero-overlap` (`stageH − lag(p)` u stage-u) / scale 1 → 0.55 o bazi, x 75 % → 70 %; od 0.70 stoji na ivici i odlazi s njom, bez fade-a |
+| kontakt senka | 0.70–0.80 | `#hero-shelf-shadow` (DOM elipsa na omotaču) opacity 0 → 1, x i širina prate bočicu |
 | lag | HOLD_END–1 | stage `y` 0 → +40 % visine |
 
-Tekstualni čvorovi copy-ja i dalje pripadaju reveal sistemu (ulaz kroz `revealWords`, hero je
-`data-reveal="off"`); izlazak animira samo kontejner. Na p ≥ 0.85 kontejner je `display: none`
-— tada je iznad kadra, a provera na dnu (ispod) ostaje poštena.
+**Hero poseduje i izlaz reči.** Tekstualni čvorovi copy-ja ulaze kroz `revealWords`
+(`settle: false` — `.reveal-word` spanovi OSTAJU), a izlaze reč po reč iz `p` (opacity +
+transform na spanovima, nikad blur po frejmu). Zato je `.reveal-word` u `#hero` dozvoljen posle
+završetka; van heroja i dalje mora da bude 0. Intro (reči, CTA, strip, ispis potpisa) se
+prekida (`progress(1)` / `introRef.finish()`) čim `p` preuzme iste čvorove — nikad dva pisca.
+Na p ≥ 0.85 kontejner je `display: none` — tada je iznad kadra, a provera na dnu ostaje poštena.
 
-Bočica je GLB iz Blendera (`public/models/bocica.glb`, napravljen kroz Blender MCP, zapis u
-`scripts/bottle.py`), čitan malim GLB + Draco čitačem (`components/three/bottleGlb.ts`); dok
-stiže ili ako padne, ista proceduralna bočica iz `bottleGeometry.ts`. Nivo tečnosti je svetska
-clipping ravan, pa površina ostaje ravna dok se bočica naginje.
+Bočica je GLB iz Blendera (`public/models/bocica.glb`, kroz Blender MCP, zapis u
+`scripts/bottle.py`: `Glass`, `Liquid`, `Cap` + `BrushStem` i `BrushHair` kao deca zatvarača),
+čitan malim GLB + Draco čitačem (`components/three/bottleGlb.ts`); dok stiže ili ako padne, ista
+proceduralna bočica sa četkicom iz `bottleGeometry.ts` (mere u `lib/bottleDims.ts`). Zatvarač je
+grupa sa pivotom u svojoj sredini (`capRef`); nivo tečnosti je svetska clipping ravan.
 
 Ispod 1024 px nema bočice (WebGL ≤ 768 px nikad, ADR-005): velika swatch kap ciklira iste
-boje, pada i „prosipa" se kao CSS krug (`transform: scale`). Ispod 400 px logo se ne vozi, samo
-zamena na 0.30; uz `prefers-reduced-motion` zona je 100 vh, bez holda, zamena na 0.50,
-statična boja, bez razlivanja.
+boje, pada 0.32–0.42 i „prosipa" se kao CSS krug (`transform: scale`); slova, potpis, frost i
+reflow rade od 400 px. Ispod 400 px logo se ne vozi: zamena na 0.30, reflow 0.30–0.48; uz
+`prefers-reduced-motion` zona je 100 vh, bez holda, zamena na 0.50, copy bledi kao kontejner
+0.55–0.85, statična boja, bez razlivanja. Podloga heroja je uvek svetla (`HeroFallback` ispod
+canvasa) — i u tamnoj temi, i dok lenji chunk stiže; nav bez frosta u tamnoj temi ide u ink.
 
 **Zabranjeno u heroju:** `pin`, Flip, `lenis.stop()` / `overflow: hidden` van menija,
 `preventDefault` na wheel/touch, `scrollTo` koji korisnik nije tražio, timeout koji „pušta"
-skrol, drugi ScrollTrigger na sekciji, opacity na tekstualnim čvorovima copy-ja.
+skrol, drugi ScrollTrigger na sekciji, opacity na tekstualnim čvorovima copy-ja iz bilo čega
+osim `apply(p)` i reveal sistema, lokalni splitter reči.
 
 ## Z-skala
 
@@ -173,4 +192,6 @@ Skroluj stranicu s kraja na kraj, pa u konzoli:
 ```
 
 Mora da vrati **prazan niz**. Takođe: `[data-reveal-state="pending"]` prazan na dnu
-stranice, i `document.querySelectorAll('.reveal-word').length === 0` posle završetka.
+stranice, i `.reveal-word` **van `#hero`** = 0 posle završetka
+(`document.querySelectorAll('.reveal-word').length === document.querySelectorAll('#hero .reveal-word').length`);
+hero svoje spanove zadržava jer iz njih vozi izlaz reči.

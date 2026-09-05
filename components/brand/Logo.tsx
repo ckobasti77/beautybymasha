@@ -7,11 +7,19 @@ import { BEAUTY, BY_MASHA } from "@/lib/brand/logo-paths";
  * blago rotirano i preklopljeno preko donje ivice slova. Ne zavisi od učitavanja fontova.
  *
  *  - mark     — mint krug sa celim lockup-om (njen IG logo; izvor za favicon)
- *  - wordmark — lockup bez kruga, BEAUTY prati currentColor (hero, Flip u nav)
+ *  - wordmark — lockup bez kruga, BEAUTY prati currentColor (hero, slot u nav-u)
  *  - full     — mark + „Beauty by Masha" pored (nav, footer)
  *
  * Boje su podrazumevano CSS tokeni; `colors` prima literale za satori (icon/OG).
- * Za ispis rukopisa vidi LogoSignature.tsx (ovde samo `animate` označava glifove).
+ *
+ * Glifovi nose `data-glyph` (`b0..b5` BEAUTY, `s0..s6` rukopis) SAMO u `animate` / `writable`
+ * varijantama — hero (korak 14) vozi slova pojedinačno iz heroja u nav slot i prepisuje potpis
+ * glif po glif. Za ispis rukopisa vidi LogoSignature.tsx (`animate` = intro sa `pending` stanjem
+ * koje CSS krije dok GSAP ne postavi dasharray); `writable` daje iste stroke atribute bez
+ * skrivanja — nav wordmark na landingu, koji hero „piše" iz p-a, a inače mora da bude odmah čitljiv.
+ *
+ * Atributi idu kroz USLOVNI spread, ne `prop={undefined}`: satori (icon/OG rute) na ključu sa
+ * undefined vrednošću pada bez odgovora, pa mark za favicon ne sme ni da vidi te ključeve.
  */
 
 export type LogoVariant = "full" | "mark" | "wordmark";
@@ -61,26 +69,35 @@ const MARK = { scale: 0.2, x: 152, y: 368, box: 1000 } as const;
 
 const SIG_STROKE = 14;
 
-function LockupArt({ colors, animate }: { colors: LogoColors; animate?: boolean }) {
+type LockupMode = { animate?: boolean; writable?: boolean };
+
+/** Stroke atributi grupe rukopisa — prazno kad se rukopis ne ispisuje (mark, footer). */
+function signatureGroupAttrs(colors: LogoColors, { animate, writable }: LockupMode) {
+  if (!animate && !writable) return {};
+  return {
+    stroke: colors.rose,
+    strokeWidth: SIG_STROKE,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    ...(animate ? { "data-logo-sig": "pending" } : { "data-logo-sig": "ready", strokeOpacity: 0 }),
+  };
+}
+
+function LockupArt({ colors, animate, writable }: { colors: LogoColors } & LockupMode) {
   const sigTransform = `translate(${LOCKUP.sigLeftX} ${LOCKUP.sigBaseline}) rotate(${LOCKUP.sigRotate}) scale(${LOCKUP.sigScale})`;
+  const indexed = animate || writable;
+  const glyphAttrs = (id: string) =>
+    indexed ? { "data-glyph": id, ...(id[0] === "s" ? { "data-sig-glyph": "" } : {}) } : {};
   return (
     <>
       <g transform={`translate(0 ${LOCKUP.beautyBaseline})`} fill={colors.ink} data-logo-beauty>
         {BEAUTY.glyphs.map((g, i) => (
-          <path key={i} d={g.d} />
+          <path key={i} d={g.d} {...glyphAttrs(`b${i}`)} />
         ))}
       </g>
-      <g
-        transform={sigTransform}
-        fill={colors.rose}
-        data-logo-sig={animate ? "pending" : undefined}
-        stroke={animate ? colors.rose : undefined}
-        strokeWidth={animate ? SIG_STROKE : undefined}
-        strokeLinecap={animate ? "round" : undefined}
-        strokeLinejoin={animate ? "round" : undefined}
-      >
+      <g transform={sigTransform} fill={colors.rose} {...signatureGroupAttrs(colors, { animate, writable })}>
         {BY_MASHA.glyphs.map((g, i) => (
-          <path key={i} d={g.d} data-sig-glyph={animate ? "" : undefined} />
+          <path key={i} d={g.d} {...glyphAttrs(`s${i}`)} />
         ))}
       </g>
     </>
@@ -95,11 +112,13 @@ type SvgCommon = {
   size?: number | string;
   colors?: Partial<LogoColors>;
   animate?: boolean;
+  /** Rukopis sa stroke atributima (nevidljiv stroke) — hero ga piše iz p-a; bez `pending` skrivanja. */
+  writable?: boolean;
   /** `true` kad je logo čisto dekorativan pored teksta (full) — nema aria-label. */
   decorative?: boolean;
 };
 
-export function LogoMark({ className, style, title = LOGO_TITLE, size, colors, animate, decorative }: SvgCommon) {
+export function LogoMark({ className, style, title = LOGO_TITLE, size, colors, animate, writable, decorative }: SvgCommon) {
   const c = { ...TOKEN_COLORS, ...colors };
   return (
     <svg
@@ -114,13 +133,22 @@ export function LogoMark({ className, style, title = LOGO_TITLE, size, colors, a
     >
       <circle cx={MARK.box / 2} cy={MARK.box / 2} r={MARK.box / 2} fill={c.circle} />
       <g transform={`translate(${MARK.x} ${MARK.y}) scale(${MARK.scale})`}>
-        <LockupArt colors={c} animate={animate} />
+        <LockupArt colors={c} animate={animate} writable={writable} />
       </g>
     </svg>
   );
 }
 
-export function LogoWordmark({ className, style, title = LOGO_TITLE, size, colors, animate, decorative }: SvgCommon) {
+export function LogoWordmark({
+  className,
+  style,
+  title = LOGO_TITLE,
+  size,
+  colors,
+  animate,
+  writable,
+  decorative,
+}: SvgCommon) {
   // BEAUTY prati currentColor (tamna tema), rukopis ostaje roze
   const c = { ...TOKEN_COLORS, ink: "currentColor", ...colors };
   const { x, y, w, h } = LOCKUP.box;
@@ -135,7 +163,7 @@ export function LogoWordmark({ className, style, title = LOGO_TITLE, size, color
       aria-label={decorative ? undefined : title}
       aria-hidden={decorative ? true : undefined}
     >
-      <LockupArt colors={c} animate={animate} />
+      <LockupArt colors={c} animate={animate} writable={writable} />
     </svg>
   );
 }

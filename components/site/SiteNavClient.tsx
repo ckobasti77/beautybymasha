@@ -397,7 +397,15 @@ export function SiteNavClient({
             {/* <400 px: mali krug (wordmark ne bi bio čitljiv). Inače horizontalni wordmark
                 visine ~30 px. Visina nav trake se NE menja (`--nav-h`: 64 / 80 px). */}
             <Logo variant="mark" size={44} decorative className="min-[400px]:hidden" />
-            <Logo variant="wordmark" size={88} decorative className="hidden text-fg min-[400px]:block" />
+            <Logo
+              variant="wordmark"
+              size={88}
+              decorative
+              // Na landingu hero piše rukopis iz p-a (stroke atributi bez `pending` skrivanja) i vozi
+              // slova po glifu; `js-nav-wordmark` ga razlikuje od marka ispod 400 px.
+              writable={!alwaysSolid}
+              className="js-nav-wordmark hidden text-fg min-[400px]:block"
+            />
           </Link>
 
           <ul className="ml-4 hidden items-center gap-1 lg:flex">
@@ -434,6 +442,8 @@ export function SiteNavClient({
             <MenuButton ref={toggleRef} open={open} onClick={() => setOpen(!open)} />
           </div>
         </div>
+        {/* Tačka tinte (korak 14): putuje sa hero potpisa na nav potpis; živi OVDE da bude iznad frosta. */}
+        <span id="nav-ink-dot" className="nav-ink-dot" hidden aria-hidden />
       </div>
 
       {/*

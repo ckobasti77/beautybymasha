@@ -58,6 +58,8 @@ export default function Home() {
       <main id="sadrzaj">
         <Hero colors={hexesForSlugs(HERO_COLOR_SLUGS)} />
         <div className="hero-overlap relative rounded-t-[28px] bg-bg">
+          {/* Kontakt senka bočice na polici (korak 14): vozi je Hero.tsx po id-u, samo transform/opacity. */}
+          <div id="hero-shelf-shadow" className="hero-shelf-shadow" aria-hidden />
           <div className="pt-16 md:pt-20">
             <LoyaltyBar />
           </div>
