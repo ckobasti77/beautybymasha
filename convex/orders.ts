@@ -1,12 +1,14 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import { orderStatusValidator, paymentMethodValidator } from "./schema";
 import { assertAdmin, assertSignedIn, currentUser, type Ctx } from "./lib/admin";
 import { loyaltyStatusFor } from "./loyalty";
 import { MESSAGES, validateEmail, validateName, validateNote, validatePhone, normalizePhone } from "./lib/validate";
 import { isValidQty, MAX_QTY_PER_LINE, cartTotals, discountedUnitPrice } from "../lib/shop";
 import { buildIpsPaymentDetails, isIpsConfigured } from "../lib/ips";
+import { PAYMENT_METHOD_LABELS } from "../lib/site";
 import { productShortName } from "../lib/ips-purpose";
 import { belgradeNow } from "../lib/slots";
 
@@ -27,7 +29,7 @@ export const ORDER_MESSAGES = {
   address: "Upiši adresu za dostavu.",
   city: "Upiši grad.",
   postalCode: "Upiši poštanski broj (5 cifara).",
-  emailRequired: "Upiši imejl — na njega stiže potvrda porudžbine.",
+  emailRequired: "Upiši imejl adresu.",
   notFound: "Porudžbina nije pronađena.",
   paymentUnavailable: "IPS plaćanje trenutno nije dostupno — izaberi pouzeće.",
   transition: "Promena statusa nije dozvoljena.",
@@ -238,6 +240,16 @@ export const create = mutation({
       });
     }
 
+    await ctx.scheduler.runAfter(0, internal.notify.newOrder, {
+      orderNumber,
+      customerName: customer.name,
+      phone: customer.phone,
+      city: customer.city,
+      itemsCount: lines.reduce((sum, l) => sum + l.qty, 0),
+      totalRsd: totals.totalRsd,
+      paymentMethod: PAYMENT_METHOD_LABELS[args.paymentMethod],
+    });
+
     return {
       orderId,
       orderNumber,
@@ -248,6 +260,105 @@ export const create = mutation({
       paymentMethod: args.paymentMethod,
       paymentStatus,
       ips,
+    };
+  },
+});
+
+/* =====================================================================
+ * Javno — zbir korpe
+ * ===================================================================== */
+
+/**
+ * Ono što korpa i naplata prikazuju. Klijent šalje samo `slug` i `qty`; naziv,
+ * cena, popust na proizvod, poštarina i loyalty stižu odavde, iz baze — ista
+ * računica koju `create` ponovi pre upisa. Korpa u `localStorage` je zato samo
+ * spisak želja, nikad izvor cene.
+ *
+ * Stavka koja više nije u ponudi ili je nema na stanju ne ruši zbir: ulazi u
+ * `issues` sa razlogom i ne broji se u `subtotalRsd`, pa kupac vidi šta da izbaci.
+ */
+export const quote = query({
+  args: { items: v.array(v.object({ slug: v.string(), qty: v.number() })) },
+  handler: async (ctx, args) => {
+    const user = await currentUser(ctx);
+    const loyalty = user ? await loyaltyStatusFor(ctx, user) : null;
+    const loyaltyApplies = loyalty?.eligible === true;
+
+    const wanted = new Map<string, number>();
+    for (const item of args.items.slice(0, MAX_LINES)) {
+      wanted.set(item.slug, (wanted.get(item.slug) ?? 0) + Math.max(0, Math.trunc(item.qty)));
+    }
+
+    const lines: {
+      slug: string;
+      name: string;
+      brand: Doc<"products">["brand"];
+      hex: string;
+      swatchOnly: boolean;
+      imagePath: string | null;
+      qty: number;
+      unitPriceRsd: number;
+      discountPercent: number;
+      finalUnitPriceRsd: number;
+      lineTotal: number;
+      stock: number;
+    }[] = [];
+    const issues: { slug: string; name: string; reason: string }[] = [];
+
+    for (const [slug, requested] of wanted) {
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .first();
+      if (!product || !product.active) {
+        issues.push({ slug, name: product?.name ?? slug, reason: ORDER_MESSAGES.unknownProduct });
+        continue;
+      }
+      const qty = Math.min(requested, MAX_QTY_PER_LINE, product.stock);
+      if (qty < 1) {
+        issues.push({ slug, name: product.name, reason: "Trenutno nema na stanju." });
+        continue;
+      }
+      if (qty < requested) {
+        issues.push({
+          slug,
+          name: product.name,
+          reason: `Na stanju je još ${product.stock} kom — količina je smanjena.`,
+        });
+      }
+      const finalUnitPriceRsd = discountedUnitPrice(product.priceRsd, product.discountPercent);
+      lines.push({
+        slug: product.slug,
+        name: product.name,
+        brand: product.brand,
+        hex: product.hex,
+        swatchOnly: product.swatchOnly,
+        imagePath: product.imagePath,
+        qty,
+        unitPriceRsd: product.priceRsd,
+        discountPercent: product.discountPercent,
+        finalUnitPriceRsd,
+        lineTotal: finalUnitPriceRsd * qty,
+        stock: product.stock,
+      });
+    }
+
+    const totals = cartTotals(
+      lines.map((l) => ({ priceRsd: l.unitPriceRsd, discountPercent: l.discountPercent, qty: l.qty })),
+      loyaltyApplies,
+    );
+
+    return {
+      lines,
+      issues,
+      ...totals,
+      loyalty: {
+        signedIn: user !== null,
+        applies: loyaltyApplies,
+        discountPercent: loyalty?.discountPercent ?? 0,
+        reason: loyalty?.reason ?? null,
+      },
+      ipsAvailable: isIpsConfigured(),
     };
   },
 });
@@ -469,6 +580,28 @@ export const countNew = query({
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", "nova"))
       .take(200);
+    return rows.length;
+  },
+});
+
+/**
+ * Brisanje probnih porudžbina po telefonu. Nije izloženo klijentu — poziva se
+ * ručno posle testiranja kroz sajt:
+ *   npx convex run orders:purgeByPhone '{"phone":"0600000001"}'
+ * Roba se vraća na stanje, kao kod otkazivanja.
+ */
+export const purgeByPhone = internalMutation({
+  args: { phone: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("orders")
+      .withIndex("by_phone", (q) => q.eq("customer.phone", normalizePhone(args.phone)))
+      .collect();
+    for (const order of rows) {
+      await restock(ctx, order);
+      await ctx.db.delete(order._id);
+    }
     return rows.length;
   },
 });

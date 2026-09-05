@@ -9,6 +9,7 @@ import { ThemeProvider } from "./ThemeProvider";
 /**
  * Sastav provider-a za javni sajt. Redosled: tema (najspoljnija, bez zavisnosti) →
  * Convex → Lenis. TextRevealGlobal ne renderuje ništa i ne zavisi ni od čega.
+ * Korpa nema provider — ona je spoljni store nad `localStorage` (`lib/cartStore.ts`).
  * Admin (prompt 6) će dobiti svoj layout bez Lenis-a i bez text-reveal-a.
  */
 export function Providers({ children }: { children: ReactNode }) {

@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import schema, { locationKeyValidator, resourceKeyValidator, statusValidator } from "./schema";
-import { assertAdmin } from "./lib/admin";
+import { assertAdmin, assertSignedIn, currentUser } from "./lib/admin";
 import {
   MAX_BOOKINGS_PER_DAY,
   getLocation,
@@ -130,6 +130,10 @@ export const create = mutation({
 
     await assertRateLimit(ctx, phone, now);
 
+    // Ulogovan gost: termin se veže za nalog, pa se vidi u „Moji termini" i broji
+    // kao plaćena poseta u loyalty ciklusu. Gost bez naloga zakazuje kao i pre.
+    const user = await currentUser(ctx);
+
     const id = await ctx.db.insert("bookings", {
       name,
       phone,
@@ -146,6 +150,7 @@ export const create = mutation({
       status: "nov",
       createdAt: now,
       source: "web",
+      customerId: user?._id,
     });
 
     await ctx.scheduler.runAfter(0, internal.notify.newRequest, {
@@ -160,6 +165,37 @@ export const create = mutation({
     });
 
     return { id, locationKey: args.locationKey, resourceKey, startMin: args.startMin, endMin };
+  },
+});
+
+/* =====================================================================
+ * Javno — moji termini
+ * ===================================================================== */
+
+/**
+ * Istorija termina prijavljenog člana (`/nalog`). Vraćaju se samo svoji termini,
+ * i samo polja koja član i sam zna — telefon i imejl se ne šalju nazad.
+ * Termini zakazani pre registracije nemaju `customerId` i ovde se ne vide.
+ */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await assertSignedIn(ctx);
+    const rows = await ctx.db
+      .query("bookings")
+      .withIndex("by_customer", (q) => q.eq("customerId", user._id))
+      .order("desc")
+      .take(50);
+    return rows.map((b) => ({
+      _id: b._id,
+      serviceTitle: b.serviceTitle,
+      locationKey: b.locationKey,
+      date: b.date,
+      startMin: b.startMin,
+      endMin: b.endMin,
+      status: b.status,
+      createdAt: b.createdAt,
+    }));
   },
 });
 

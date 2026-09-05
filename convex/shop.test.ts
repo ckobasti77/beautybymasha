@@ -439,3 +439,101 @@ describe("kontakt forma", () => {
     expect(await t.query(api.inquiries.list, { key: KEY })).toHaveLength(3);
   });
 });
+
+/**
+ * Zbir korpe (`orders.quote`) je ono što kupac vidi pre nego što potvrdi.
+ * Mora da bude ista računica koju `orders.create` posle ponovi iz baze —
+ * inače bi na potvrdi pisao jedan iznos, a naplatio se drugi.
+ */
+describe("zbir korpe (quote)", () => {
+  let t: Awaited<ReturnType<typeof setup>>;
+  beforeEach(async () => {
+    t = await setup();
+  });
+
+  it("cene i nazivi dolaze iz baze, ne iz korpe", async () => {
+    const lak = await t.query(api.products.bySlug, { slug: LAK });
+    const quote = await t.query(api.orders.quote, { items: [{ slug: LAK, qty: 2 }] });
+
+    expect(quote.lines).toHaveLength(1);
+    expect(quote.lines[0]).toMatchObject({ slug: LAK, name: lak!.name, qty: 2 });
+    expect(quote.lines[0].lineTotal).toBe(lak!.finalPriceRsd * 2);
+    expect(quote.subtotalRsd).toBe(lak!.finalPriceRsd * 2);
+  });
+
+  it("zbir se poklapa sa onim što create stvarno naplati", async () => {
+    const quote = await t.query(api.orders.quote, { items: [{ slug: LAK, qty: 3 }] });
+    const order = await t.mutation(api.orders.create, {
+      items: [{ slug: LAK, qty: 3 }],
+      customer: KUPAC,
+      paymentMethod: "pouzecem",
+    });
+    expect(order.subtotalRsd).toBe(quote.subtotalRsd);
+    expect(order.shippingRsd).toBe(quote.shippingRsd);
+    expect(order.totalRsd).toBe(quote.totalRsd);
+  });
+
+  it("količina veća od stanja se smanjuje i prijavljuje, umesto da sruši zbir", async () => {
+    const lak = await t.query(api.products.bySlug, { slug: LAK });
+    await t.mutation(api.products.update, { key: KEY, id: lak!._id, stock: 2 });
+
+    const quote = await t.query(api.orders.quote, { items: [{ slug: LAK, qty: 9 }] });
+    expect(quote.lines[0].qty).toBe(2);
+    expect(quote.issues).toHaveLength(1);
+    expect(quote.issues[0].slug).toBe(LAK);
+  });
+
+  it("rasprodat i ugašen proizvod ispadaju iz zbira, a ostatak korpe prolazi", async () => {
+    const lak = await t.query(api.products.bySlug, { slug: LAK });
+    await t.mutation(api.products.update, { key: KEY, id: lak!._id, stock: 0 });
+
+    const quote = await t.query(api.orders.quote, {
+      items: [
+        { slug: LAK, qty: 1 },
+        { slug: "ne-postoji-ovaj-slug", qty: 1 },
+        { slug: "gumdrop", qty: 1 },
+      ],
+    });
+    expect(quote.lines.map((l) => l.slug)).toEqual(["gumdrop"]);
+    expect(quote.issues.map((i) => i.slug).sort()).toEqual(["ne-postoji-ovaj-slug", LAK].sort());
+    expect(quote.subtotalRsd).toBeGreaterThan(0);
+  });
+
+  it("gost ne dobija loyalty popust i vidi poziv na registraciju", async () => {
+    const quote = await t.query(api.orders.quote, { items: [{ slug: LAK, qty: 1 }] });
+    expect(quote.loyalty.signedIn).toBe(false);
+    expect(quote.loyalty.applies).toBe(false);
+    expect(quote.loyaltyDiscountRsd).toBe(0);
+  });
+
+  it("članu je popust ZASEBAN red, a ne niža cena stavke", async () => {
+    const userId = await t.run(async (ctx) =>
+      ctx.db.insert("users", {
+        email: "clan@primer.rs",
+        role: "customer" as const,
+        loyaltyNumber: "BM424242",
+        createdAt: Date.now(),
+      }),
+    );
+    const kao = t.withIdentity({ subject: userId, issuer: "test" });
+
+    const lak = await t.query(api.products.bySlug, { slug: LAK });
+    const quote = await kao.query(api.orders.quote, { items: [{ slug: LAK, qty: 1 }] });
+
+    // Cena stavke je netaknuta…
+    expect(quote.lines[0].lineTotal).toBe(lak!.finalPriceRsd);
+    expect(quote.subtotalRsd).toBe(lak!.finalPriceRsd);
+    // …a popust stoji sam za sebe i ulazi tek u ukupan iznos.
+    expect(quote.loyalty.applies).toBe(true);
+    expect(quote.loyaltyDiscountRsd).toBe(
+      Math.round((lak!.finalPriceRsd * site.loyalty.discountPercent) / 100),
+    );
+    expect(quote.totalRsd).toBe(quote.subtotalRsd - quote.loyaltyDiscountRsd + quote.shippingRsd);
+  });
+
+  it("prazna korpa daje nule, ne grešku", async () => {
+    const quote = await t.query(api.orders.quote, { items: [] });
+    expect(quote).toMatchObject({ subtotalRsd: 0, shippingRsd: 0, totalRsd: 0, loyaltyDiscountRsd: 0 });
+    expect(quote.lines).toEqual([]);
+  });
+});

@@ -394,6 +394,8 @@ export default defineSchema({
     .index("by_location_date", ["locationKey", "date"])
     .index("by_date", ["date"])
     .index("by_createdAt", ["createdAt"])
+    // „Moji termini" u /nalog — bez ovog indeksa bi se čitali svi termini salona.
+    .index("by_customer", ["customerId"])
     // Ovaj indeks nosi proveru kapaciteta: sva zauzeća jednog resursa,
     // u jednom lokalu, jednog dana — u jednom čitanju.
     .index("by_location_resource_date", ["locationKey", "resourceKey", "date"]),

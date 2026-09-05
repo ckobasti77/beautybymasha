@@ -1,6 +1,6 @@
 # STATUS
 
-Stanje posle koraka **04 — javni sajt: landing sa hero shaderom i čarobnjak za zakazivanje**.
+Stanje posle koraka **05 — shop, korpa, plaćanje i nalog**.
 Ovaj fajl je za sledeći korak: šta radi, šta još nije podešeno, šta treba pitati vlasnicu.
 
 ## Provera koja prolazi
@@ -9,23 +9,133 @@ Ovaj fajl je za sledeći korak: šta radi, šta još nije podešeno, šta treba 
 npx convex dev --once   ✓
 npm run typecheck       ✓
 npm run lint            ✓  (nula upozorenja)
-npm test                ✓  79 testova, 4 fajla
-npm run build           ✓
+npm test                ✓  98 testova, 5 fajlova
+npm run build           ✓  80 strana, od toga 70 na /shop/[slug]
 ```
 
-Provera reveal-a iz `docs/MOTION.md` vraća **prazan niz** — provereno u Playwright-u na
-1440 px i na 390 px, posle skrola s kraja na kraj, i pri brzom i pri sporom skrolu.
-`[data-reveal-state="pending"]` je prazan, `.reveal-word` je 0, horizontalnog skrola nema
-(0 px na obe širine).
+Provera reveal-a iz `docs/MOTION.md` vraća **prazan niz** na `/`, `/shop`, strani
+proizvoda, `/korpa` i `/nalog`, posle skrola s kraja na kraj, na 390 px i na 1440 px.
+`[data-reveal-state="pending"]` je prazan, `.reveal-word` je 0, horizontalnog skrola
+nema (0 px).
 
 Produkcija https://beautybymasha-mu.vercel.app je bila HTTP 200 na početku koraka.
-Korak 03 nije ostavio ništa slomljeno (typecheck i lint su prošli bez izmena).
+Korak 04 nije ostavio ništa slomljeno — `typecheck` i `lint` su prošli pre ijedne izmene.
 
 **Napomena o `npm run build` (i dalje važi):** na Windows-u ume da padne sa
 `build worker exited with code: 3221226356`. To je pad radnog procesa, ne greška u kodu.
-`rm -rf .next && npm run build` prolazi. Dogodilo se jednom i u ovom koraku.
+`rm -rf .next && npm run build` prolazi.
 
-## Šta korak 04 dodaje
+## Šta korak 05 dodaje
+
+| Fajl | Šta radi |
+| --- | --- |
+| `app/shop/page.tsx` | Zid swatch-eva; svih 70 kartica je u serverskom HTML-u. `ItemList` i `BreadcrumbList` JSON-LD. |
+| `app/shop/[slug]/page.tsx` | 70 statički generisanih strana, `generateMetadata`, `Product` + `Offer` JSON-LD, srodni proizvodi. |
+| `app/korpa`, `app/placanje`, `app/porudzbina` | Korpa, naplata, i praćenje porudžbine brojem i telefonom. |
+| `app/nalog/page.tsx` | Registracija, prijava, članska kartica sa QR kodom, istorija termina i porudžbina. |
+| `components/shop/*` | `ProductSwatch` (gloss sweep + crossfade), `ProductCard`, `ShopWall`, `ShopFiltersBar`, `AddToCartForm`. |
+| `components/cart/*` | `CartView`, `CartTotals`, `CheckoutView`, `OrderReceipt`, `OrderTracker`. |
+| `components/nalog/*` | `AccountView`, `AuthPanel`, `MemberCard`. |
+| `components/ui/QrCode.tsx` | Crtanje QR koda na klijentu (`qrcode`, dinamički uvoz). |
+| `lib/cart.ts`, `lib/cartStore.ts` | Korpa: čista aritmetika, pa spoljni store nad `localStorage`. |
+| `lib/shopFilters.ts` | Filteri i njihov zapis u URL-u. |
+| `lib/jsonLd.ts`, `components/site/JsonLd.tsx` | Struktuirani podaci za katalog. |
+| `convex/orders.ts` → `quote` | Serverski zbir korpe: cene, popust, poštarina, loyalty. |
+| `convex/bookings.ts` → `mine` | „Moji termini". `create` sada upisuje `customerId` za prijavljene. |
+| `convex/notify.ts` → `newOrder` | Mejl vlasnici o novoj porudžbini, isti ugovor kao za termine. |
+
+### Tri stvari koje su bile izričit zahtev
+
+1. **Dva brenda, jedno pravilo za slike.** ORLY (50) ima fotografiju: hover pusti gloss
+   sweep preko kruga boje (600 ms), pa se posle njega slika crossfade-uje preko boje
+   (zadrška 300 ms, trajanje 300 ms). Entity (20, `swatchOnly`) nema fotografiju, pa
+   tamo ostaje samo boja i sweep. Provereno u browseru: na `?brend=entity` kartice
+   sadrže **nula** `<img>` elemenata. Hover je iza `@custom-variant can-hover`
+   (`(hover: hover) and (pointer: fine)`), pa na telefonu slika ne ostaje zalepljena
+   posle tapa; tamo se swatch samo blago uveća.
+2. **Cenu računa server, uvek.** Korpa u `localStorage` nosi isključivo `{ slug, qty }` —
+   `lib/cart.ts` odbacuje sve ostalo, uključujući cenu koju bi neko ručno dopisao.
+   Zbir dolazi iz `orders.quote`, a `orders.create` ga pre upisa ponovi iz baze.
+   Loyalty popust je **zaseban red** u zbiru, ne niža cena stavke; to drži test
+   „članu je popust ZASEBAN red" u `convex/shop.test.ts`.
+3. **Članska kartica na telefonu.** QR sadrži samo `loyaltyNumber` (`loyalty.myCard` →
+   `qrValue`), ništa lično. Broj je ispisan i slovima ispod koda, za slučaj da kamera
+   ne uhvati. Provereno na 390 px, bez horizontalnog prekoračenja.
+
+### Zamke koje su se pojavile i rešene su
+
+1. **Hidratacija je pucala na `/shop`.** `ShopWall` je iza `Suspense`, pa se hidratira
+   kasnije nego što `TextRevealGlobal` prođe kroz DOM. Global je stigao da obeleži
+   `<li>` kartice sa `data-reveal-state="pending"`, a React ih posle nije prepoznao.
+   Rešeno sa `revealOff` na mreži kartica: ceo tekst kartice je ionako unutar `<a>` i
+   mora da bude čitljiv istog trena.
+2. **Potvrda porudžbine je nestajala čim se korpa isprazni.** `CheckoutView` je gasio
+   formu kad `items` postane prazan, a broj porudžbine je živeo u toj formi. Stanje
+   potvrde je podignuto iznad provere prazne korpe.
+3. **`qrcode` razbija raspored.** `toCanvas` upisuje i `style.width` u punoj rezoluciji
+   (336 px za `size` 168), pa je članska kartica pravila 47 px prekoračenja na 390 px.
+   `QrCode` posle crtanja vraća CSS veličinu na `size`.
+4. **Ikona naloga je gurala dugme za meni van ekrana.** Uz novu ikonu korpe navigacija
+   se na 390 px prepunila. Nalog je sada `lg:inline-flex`; u mobilnom meniju i dalje stoji.
+
+### Popravljeno usput, van zadatka
+
+**`JWT_PRIVATE_KEY` na dev deployment-u je bio slomljen.** U bazi je stajao samo prvi red
+PEM-a (`-----BEGIN PRIVATE KEY-----`, 28 znakova), pa je svaka prijava padala sa
+`invalid RSA PrivateKeyInfo`. Do sada se to nije videlo jer nijedna strana nije koristila
+prijavu. Ključevi su regenerisani i upisani u obliku koji `@convex-dev/auth` očekuje
+(PEM sa razmacima umesto preloma reda). **Isti problem će se ponoviti na `--prod` ako se
+ključ postavlja iz PowerShell-a** — postavljati ga iz Bash-a ili kroz
+`npx @convex-dev/auth --prod`.
+
+### Provereno u browseru, kraj do kraja
+
+Protiv živog dev Convex deployment-a, na 390 px: proizvod → „Dodajte u korpu" → korpa
+(zbir sa servera, poštarina 400 RSD, poruka o pragu za besplatnu dostavu) → naplata
+(IPS opcija je vidljiva ali **isključena**, sa napomenom da čeka podatke) → porudžbina
+`BM-2609-0001` → praćenje po broju i telefonu. Zatim registracija → članska kartica
+`BM 951 523` → korpa istog korisnika prikazuje red `Loyalty popust 10% − 398 RSD`.
+Probni podaci su obrisani: `orders:purgeByPhone`, `admin:purgeUserByEmail`.
+
+### Izmene u zajedničkim fajlovima, pažljivo pri merge-u
+
+- `components/site/SiteNav.tsx` — ikona korpe sa brojem; svi unutrašnji linkovi su sada
+  `next/link` i apsolutni (`/#usluge`, ne `#usluge`), jer ista navigacija stoji i na
+  stranama bez sidara. Nalog je skriven ispod `lg`.
+- `components/sections/LoyaltyBar.tsx` — dugme za zatvaranje, pamćenje 30 dana u
+  `localStorage` (`bbm.loyalty-traka.v1`), i `bare` varijanta za korpu.
+- `app/globals.css` — `@custom-variant can-hover`, i gloss sweep je sada iza
+  `hover: hover`. Fokus tastaturom radi na svakom uređaju.
+- `convex/orders.ts` — `ORDER_MESSAGES.emailRequired` više ne obećava potvrdu na imejl.
+- `convex/schema.ts` — nov indeks `bookings.by_customer`.
+
+## Šta još NIJE podešeno
+
+1. **Kupcu se ne šalje nikakav mejl.** `notify.newOrder` obaveštava vlasnicu. Resend bez
+   verifikovanog domena isporučuje samo na adresu vlasnika naloga, pa bi poruka kupcu
+   bila obećanje bez pokrića. Sav copy je usklađen sa tim: nigde ne piše da potvrda
+   stiže na imejl. Kad domen bude verifikovan, dodati i mejl kupcu.
+2. **IPS QR i dalje čeka podatke** (vidi [POTVRDITI] iz koraka 03). Naplata prikazuje
+   opciju kao isključenu, sa objašnjenjem. Račun se ne izmišlja.
+3. **Popust na proizvod (`discountPercent`) nema gde da se unese.** Polje postoji u bazi
+   i u `products.update`, kartica i strana proizvoda ga prikazuju kao precrtanu staru
+   cenu, ali admin ekran za to je korak 06.
+4. Produkcijski Convex deployment i dalje nema ništa (vidi korak 03 niže).
+
+## [POTVRDITI] kod vlasnice — novo u ovom koraku
+
+| Šta | Gde |
+| --- | --- |
+| **Dijakritika u `data/products.json`.** Isti problem koji korak 04 prijavljuje za `site.json` i `services.json`: opisi proizvoda su ASCII, pa na strani proizvoda piše „nijansa najbliza boji brenda salona" umesto „najbliža". Vidi se na svih 70 strana. Nije dirano jer taj fajl u paralelnom radu menja druga sesija, pa bi se ispravke sudarile. | `data/products.json` → `products[].description` |
+| **Cene proizvoda su okvirne** i to piše na dnu `/shop`. Preračunate su iz USD; `priceUsdRef` u podacima čuva original radi provere. | `data/products.json` → `meta.priceNote` |
+| **Rok isporuke i kurirska služba.** Nigde ne pišemo za koliko dana stiže paket, jer ne znamo. Kupac vidi samo „javljamo se telefonom pre slanja". | `components/cart/OrderReceipt.tsx` |
+| **Da li se roba može vratiti i pod kojim uslovima.** Nema strane o reklamacijama, a zakon je za webshop traži. | strana ne postoji |
+
+---
+
+## Nasleđeno iz koraka 04 — landing i zakazivanje
+
+### Šta korak 04 dodaje
 
 | Fajl | Šta radi |
 | --- | --- |
@@ -68,7 +178,7 @@ shader se skupi u krug (140% → 13%), pin se otpusti.
 - `lib/gsap.ts` — registrovan `Flip`.
 - Obrisan `components/dev/` (kontrolna tabla iz koraka 1, kako je i planirano).
 
-## Šta još NIJE podešeno
+### Šta još NIJE podešeno
 
 1. **`/shop` i `/nalog` su privremene strane.** Postoje samo da dugmad „Ceo katalog" i
    „Registrujte se" ne vode u 404 na demou. **Korak 05 ih briše i piše prave.**
@@ -77,7 +187,7 @@ shader se skupi u krug (140% → 13%), pin se otpusti.
    Navigacija za sada ima temu, telefon, nalog i CTA.
 3. Produkcijski Convex deployment i dalje nema ništa (vidi korak 03 ispod).
 
-## [POTVRDITI] kod vlasnice — novo u ovom koraku
+### [POTVRDITI] kod vlasnice — novo u ovom koraku
 
 | Šta | Gde |
 | --- | --- |

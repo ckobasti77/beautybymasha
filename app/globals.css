@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/*
+ * Miš, ne prst. Na telefonu `:hover` ostaje zalepljen posle tapa, pa bi slika
+ * proizvoda ostala preko swatch-a dok se ne tapne negde drugde. Sve što zavisi
+ * od hovera nosi ovaj varijantni prefiks (`can-hover:`).
+ */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
+
 /* ------------------------------------------------------------------
    Beauty by Masha — dizajn tokeni
    Izvor: data/design-dna.json → design_system (+ docs/BRAND.md za kontraste).
@@ -343,9 +350,14 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
   transition: transform 600ms var(--ease-out-expo);
   pointer-events: none;
 }
-.group:hover .swatch-gloss::after,
+/* Tastatura dobija isti prelaz na svakom uređaju; miš samo tamo gde hover postoji. */
 .group:focus-visible .swatch-gloss::after {
   transform: translateX(130%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .swatch-gloss::after {
+    transform: translateX(130%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .swatch-gloss::after {

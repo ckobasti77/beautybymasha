@@ -82,3 +82,58 @@ export const newRequest = internalAction({
     return null;
   },
 });
+
+/**
+ * Mejl vlasnici o novoj porudžbini iz webshopa. Isti ugovor kao `newRequest`:
+ * bez `RESEND_API_KEY` samo zapiše u log, jer porudžbina je već u bazi i vidi
+ * se u /admin. Kupcu se odavde NE šalje ništa — Resend bez verifikovanog domena
+ * isporučuje samo na adresu vlasnika naloga, pa bi to bilo obećanje bez pokrića.
+ */
+export const newOrder = internalAction({
+  args: {
+    orderNumber: v.string(),
+    customerName: v.string(),
+    phone: v.string(),
+    city: v.string(),
+    itemsCount: v.number(),
+    totalRsd: v.number(),
+    paymentMethod: v.string(),
+  },
+  returns: v.null(),
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.log(`notify.newOrder: RESEND_API_KEY nije postavljen — preskačem mejl (${args.orderNumber})`);
+      return null;
+    }
+    const to = process.env.NOTIFY_EMAIL || site.email;
+    const from = process.env.RESEND_FROM || `${site.name} <onboarding@resend.dev>`;
+    const adminUrl = `${(process.env.SITE_URL || site.url).replace(/\/$/, "")}/admin`;
+
+    const amount = `${args.totalRsd} RSD`;
+    const subject = `Nova porudžbina ${args.orderNumber} · ${amount}`;
+    const lines = [
+      `Broj: ${args.orderNumber}`,
+      `Kupac: ${args.customerName}`,
+      `Telefon: ${args.phone}`,
+      `Grad: ${args.city}`,
+      `Stavki: ${args.itemsCount}`,
+      `Iznos: ${amount}`,
+      `Plaćanje: ${args.paymentMethod}`,
+      "",
+      `Otvori u panelu: ${adminUrl}`,
+    ];
+
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [to], subject, text: lines.join("\n") }),
+      });
+      if (!res.ok) console.warn("Resend nije uspeo", res.status, await res.text());
+    } catch (err) {
+      console.warn("Resend zahtev je pukao", err instanceof Error ? err.message : String(err));
+    }
+    return null;
+  },
+});

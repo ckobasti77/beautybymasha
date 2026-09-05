@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { assertAdmin } from "./lib/admin";
 import {
   DEFAULT_CAPACITY,
@@ -180,5 +180,42 @@ export const seedShop = mutation({
     }
 
     return result;
+  },
+});
+
+/**
+ * Brisanje probnog naloga po imejlu — nalog, njegove auth zapise i njegovu
+ * loyalty istoriju. Nije izloženo klijentu; poziva se ručno posle testiranja
+ * registracije kroz sajt:
+ *   npx convex run admin:purgeUserByEmail '{"email":"test@primer.rs"}'
+ *
+ * Porudžbine i termini se NE brišu — oni su poslovni podaci; ostaju bez veze
+ * sa nalogom, kao da su poručeni bez prijave.
+ */
+export const purgeUserByEmail = internalMutation({
+  args: { email: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .first();
+    if (!user) return 0;
+
+    for (const table of ["authAccounts", "authSessions"] as const) {
+      const rows = await ctx.db.query(table).collect();
+      for (const row of rows) {
+        if (row.userId === user._id) await ctx.db.delete(row._id);
+      }
+    }
+    const redemptions = await ctx.db
+      .query("loyaltyRedemptions")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const r of redemptions) await ctx.db.delete(r._id);
+
+    await ctx.db.delete(user._id);
+    return 1;
   },
 });
