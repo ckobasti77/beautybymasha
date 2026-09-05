@@ -69,7 +69,24 @@ export function TextRevealGlobal() {
         if (r.top < window.innerHeight && r.bottom > 0) fire(el);
       }
     };
-    window.addEventListener("scroll", flushAtBottom, { passive: true });
+
+    /**
+     * Brz skrol (flick na telefonu, `scrollTo` u testu) ume da element ubaci i izbaci
+     * iz kadra između dve isporuke IntersectionObserver-a — tada `isIntersecting` u
+     * trenutku isporuke već stoji na false i copy ostane sakriven zauvek.
+     * Sve što je otišlo IZNAD kadra, a nije okinulo, pušta se odmah.
+     */
+    const flushPassed = () => {
+      for (const el of [...waiting]) {
+        if (el.getBoundingClientRect().bottom < 0) fire(el);
+      }
+    };
+
+    const onScroll = () => {
+      flushPassed();
+      flushAtBottom();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", flushAtBottom);
 
     const mo = new MutationObserver((records) => {
@@ -85,7 +102,7 @@ export function TextRevealGlobal() {
       io.disconnect();
       mo.disconnect();
       waiting.clear();
-      window.removeEventListener("scroll", flushAtBottom);
+      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", flushAtBottom);
     };
   }, []);

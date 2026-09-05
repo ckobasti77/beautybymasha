@@ -51,6 +51,13 @@ export type RevealProps = {
   delay?: number;
   /** Početni pomeraj naviše u px (fade). */
   y?: number;
+  /**
+   * Izuzmi celo podstablo iz site-wide reč-po-reč prolaza (`data-reveal="off"`).
+   * Potrebno kad su deca prazni copy tagovi — `<li>` sa samo slikom unutra hideCss()
+   * sakrije, a TextRevealGlobal ga preskoči jer nema teksta, pa ostane nevidljiv.
+   * `variant="clip"` ne dira `opacity`, pa ga ni Reveal ne bi vratio.
+   */
+  revealOff?: boolean;
   "aria-label"?: string;
 };
 
@@ -65,6 +72,7 @@ export function Reveal({
   stagger = false,
   delay = 0,
   y = 24,
+  revealOff = false,
   "aria-label": ariaLabel,
 }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
@@ -169,7 +177,7 @@ export function Reveal({
       className={className}
       aria-label={ariaLabel}
       data-reveal-motion="pending"
-      data-reveal={variant === "count" ? "off" : undefined}
+      data-reveal={variant === "count" || revealOff ? "off" : undefined}
     >
       {children}
     </Tag>

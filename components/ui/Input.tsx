@@ -52,7 +52,8 @@ export function describedBy(id: string, error?: string, hint?: string) {
 }
 
 export type InputProps = FieldProps &
-  Omit<ComponentPropsWithoutRef<"input">, "className" | "id"> & {
+  // `prefix` je i HTML atribut <input>; bez Omit-a presek postaje `string & ReactNode`.
+  Omit<ComponentPropsWithoutRef<"input">, "className" | "id" | "prefix" | "suffix"> & {
     id?: string;
     prefix?: ReactNode;
     suffix?: ReactNode;

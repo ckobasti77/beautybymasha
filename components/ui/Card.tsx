@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 type CardTag = "div" | "article" | "section" | "li" | "a" | "figure";
 
@@ -24,7 +24,9 @@ export function Card<T extends CardTag = "div">({
   children,
   ...rest
 }: CardProps<T>) {
-  const Tag = (as ?? "div") as ElementType;
+  // Polimorfna kartica: u runtime-u je traženi tag, a za TS se pravimo da je <div>.
+  // Bez ovog suženja presek props-a svih dozvoljenih tagova ispadne `never`.
+  const Tag = (as ?? "div") as "div";
   const cls = [
     "rounded-md border border-line bg-bg-elev shadow-card",
     flush ? "overflow-hidden" : "p-6",
@@ -35,7 +37,7 @@ export function Card<T extends CardTag = "div">({
     .filter(Boolean)
     .join(" ");
   return (
-    <Tag className={cls} {...rest}>
+    <Tag className={cls} {...(rest as ComponentPropsWithoutRef<"div">)}>
       {children}
     </Tag>
   );

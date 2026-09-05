@@ -181,3 +181,47 @@ Route (app)
 
 ○  (Static)  prerendered as static content
 
+
+===== DEPLOY: korak 3 =====
+▌ Deploying code to deployment:
+▌ [Production] ckobasti77:beautybymasha:production (prod) (dashboard: https://dashboard.convex.dev/t/ckobasti77/beautybymasha/good-swordfish-571)
+▌ └─ https://good-swordfish-571.eu-west-1.convex.cloud
+- Deploying to https://good-swordfish-571.eu-west-1.convex.cloud...
+
+[32m✔[39m No indexes are deleted by this push
+Uploading functions to Convex...
+Generating TypeScript bindings...
+Running TypeScript...
+Pushing code to your Convex deployment...
+Schema validation complete.
+Finalizing push...
+✔ Added table indexes:
+  [+] authAccounts.providerAndAccountId   provider, providerAccountId, _creationTime
+  [+] authAccounts.userIdAndProvider   userId, provider, _creationTime
+  [+] authRateLimits.identifier   identifier, _creationTime
+  [+] authRefreshTokens.sessionId   sessionId, _creationTime
+  [+] authRefreshTokens.sessionIdAndParentRefreshTokenId   sessionId, parentRefreshTokenId, _creationTime
+  [+] authSessions.userId   userId, _creationTime
+  [+] authVerificationCodes.accountId   accountId, _creationTime
+  [+] authVerificationCodes.code   code, _creationTime
+  [+] authVerifiers.signature   signature, _creationTime
+  [+] inquiries.by_createdAt   createdAt, _creationTime
+  [+] inquiries.by_status   status, _creationTime
+  [+] loyaltyRedemptions.by_redeemedAt   redeemedAt, _creationTime
+  [+] loyaltyRedemptions.by_user   userId, _creationTime
+  [+] orders.by_createdAt   createdAt, _creationTime
+  [+] orders.by_customer   customerId, _creationTime
+  [+] orders.by_orderNumber   orderNumber, _creationTime
+  [+] orders.by_phone   customer.phone, _creationTime
+  [+] orders.by_status   status, _creationTime
+  [+] productCategories.by_key   key, _creationTime
+  [+] products.by_brand   brand, _creationTime
+  [+] products.by_category   categoryKey, _creationTime
+  [+] products.by_sku   sku, _creationTime
+  [+] products.by_slug   slug, _creationTime
+  [+] users.by_loyaltyNumber   loyaltyNumber, _creationTime
+  [+] users.by_role   role, _creationTime
+  [+] users.email   email, _creationTime
+  [+] users.phone   phone, _creationTime
+✔ Deployed Convex functions to https://good-swordfish-571.eu-west-1.convex.cloud
+PROD OK 200 posle 30s cekanja

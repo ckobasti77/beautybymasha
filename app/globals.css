@@ -174,6 +174,12 @@ html {
 }
 
 body {
+  /*
+   * `clip`, ne `hidden`: seče slučajno prekoračenje po širini na 390 px (magnetni
+   * omotači dugmadi imaju negativnu marginu), ali ne pravi scroll kontejner — pa
+   * `position: sticky` i ScrollTrigger pin nastavljaju da rade.
+   */
+  overflow-x: clip;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
@@ -317,6 +323,34 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
   border: 1px solid var(--glass-line);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/*
+ * Gloss sweep preko swatch kruga (DNA image_effects: „hover pušta gloss sweep preko
+ * swatch kruga"). Dijagonalni specular pređe za 600 ms i stane sa druge strane.
+ * Samo transform — bez repaint-a. Gasi se uz prefers-reduced-motion.
+ */
+@utility swatch-gloss {
+  position: relative;
+  overflow: hidden;
+}
+.swatch-gloss::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.55) 50%, transparent 62%);
+  transform: translateX(-130%);
+  transition: transform 600ms var(--ease-out-expo);
+  pointer-events: none;
+}
+.group:hover .swatch-gloss::after,
+.group:focus-visible .swatch-gloss::after {
+  transform: translateX(130%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .swatch-gloss::after {
+    display: none;
+  }
 }
 
 /* Fokus prsten — jedan za ceo sajt */
