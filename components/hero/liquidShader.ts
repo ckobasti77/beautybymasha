@@ -33,7 +33,9 @@ export const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3  uPourColor;   // uhvaćena boja tečnosti (THREE.Color, linearni prostor)
   uniform vec2  uPourOrigin;  // uv tačka iz koje kreće razlivanje (y na gore)
   uniform float uPourMax;     // najveće rastojanje od ishodišta do ugla kadra (uv, aspect-ispravljeno)
-  uniform vec3  uPalette[4];
+  // 0..3 = DNA paleta (mint → mint-soft → rose-soft → paper); 4 = --mint-deep (dublji mint u
+  // niskom delu polja, da miran kadar ne otpliva u skoro-belo). Linearni prostor kroz THREE.Color.
+  uniform vec3  uPalette[5];
   uniform float uReduced;     // 1 = bez kretanja (rezerva; mi tada i ne montiramo Canvas)
   uniform vec2  uResolution;
 
@@ -65,11 +67,12 @@ export const FRAGMENT_SHADER = /* glsl */ `
     return 130.0 * dot(m, g);
   }
 
-  /* Četiri oktave — dalje se na 1.5 dpr ionako ne vidi, a košta. */
+  /* Tri oktave (korak 16): fine nabore ne želimo — polje je ređe i krupnije, a jeftinije je.
+     Lacunarity 2.02 ostaje; amplituda i dalje puca na pola po oktavi. */
   float fbm(vec2 p) {
     float sum = 0.0;
     float amp = 0.5;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       sum += amp * snoise(p);
       p = p * 2.02 + vec2(11.3, 7.1);
       amp *= 0.5;
@@ -81,8 +84,8 @@ export const FRAGMENT_SHADER = /* glsl */ `
     // Kvadratna mreža bez obzira na oblik prozora — mrlje ostaju okrugle.
     float aspect = uResolution.x / max(uResolution.y, 1.0);
     // Niska prostorna frekvencija: krupne, lenje mrlje. Veći množilac ovde pretvara
-    // površinu u mermer, a traži se lak koji se sliva.
-    vec2 p = (vUv - 0.5) * vec2(aspect, 1.0) * 1.15;
+    // površinu u mermer, a traži se lak koji se sliva. Korak 16: 1.15 → 0.80 (ređe, krupnije mrlje).
+    vec2 p = (vUv - 0.5) * vec2(aspect, 1.0) * 0.80;
 
     // Pun ciklus ~24 s.
     float t = uTime * 0.26;
@@ -95,34 +98,39 @@ export const FRAGMENT_SHADER = /* glsl */ `
 
     // Domenski warping, prolaz 1
     vec2 q = vec2(fbm(p + t * 0.30), fbm(p + vec2(5.2, 1.3) - t * 0.20));
-    // prolaz 2
+    // prolaz 2 — korak 16: manje uvijanja (1.35 → 0.85 warp q, 1.25 → 0.80 warp r), manje distorzije.
     vec2 r = vec2(
-      fbm(p + 1.35 * q * warp + vec2(1.7, 9.2) + t * 0.14),
-      fbm(p + 1.35 * q * warp + vec2(8.3, 2.8) - t * 0.12)
+      fbm(p + 0.85 * q * warp + vec2(1.7, 9.2) + t * 0.14),
+      fbm(p + 0.85 * q * warp + vec2(8.3, 2.8) - t * 0.12)
     );
-    float f = fbm(p + 1.25 * r * warp);
+    float f = fbm(p + 0.80 * r * warp);
 
     // Veći nagib = širi opseg n (jači kontrast); centar ostaje 0.5.
     float n = clamp(f * 0.85 + 0.5, 0.0, 1.0);
 
-    // Paleta iz design-dna: mint → mint-soft → rose-soft → paper. Prag mint→mint-soft je
-    // pomeren naviše (0.35) da zasićeni mint drži donju polovinu polja umesto da odmah
-    // pređe u skoro-belo; papir ostaje samo na vrhu (n>0.92), inače se cela površina
-    // proseči u krem i mint se izgubi.
-    vec3 col = mix(uPalette[0], uPalette[1], smoothstep(0.35, 0.82, n));
+    // Paleta iz design-dna: mint → mint-soft → rose-soft → paper. Korak 16: pragovi pomereni naviše
+    // (0.45, 0.90) da miran kadar bude 10-15 % manje svetla i mirniji — mint drži veći deo polja, a
+    // papir se javlja tek na samom vrhu (n > 0.96), inače cela površina otpliva u krem.
+    vec3 col = mix(uPalette[0], uPalette[1], smoothstep(0.45, 0.90, n));
     col = mix(col, uPalette[2], smoothstep(0.70, 0.92, n));
-    col = mix(col, uPalette[3], smoothstep(0.92, 1.00, n));
+    col = mix(col, uPalette[3], smoothstep(0.96, 1.00, n));
+
+    // Dublji mint u niskom delu polja: ne tamnije ka crnoj, nego dublji mint (--mint-deep) umesto
+    // skoro-belog. Iznad n = 0.45 boja ostaje netaknuta.
+    col = mix(uPalette[4], col, smoothstep(0.0, 0.45, n));
 
     // Mokri sjaj: jedan uzan pojas koji lenjo klizi dijagonalno preko polja. Jači, sa
     // podignutim podom (0.5) da se vidi i preko mint zona — mora da se čita kao mokar lak.
     float band = dot(p, normalize(vec2(0.82, 0.57))) * 1.5 + length(r) * 0.5 - t * 0.42;
     float ridge = 1.0 - abs(fract(band * 0.5) * 2.0 - 1.0);
-    float spec = pow(clamp(ridge, 0.0, 1.0), 8.0);
-    col += spec * 0.55 * (0.5 + 0.5 * n) * warp;
+    // Korak 16: uži pojas (8 → 12) i tiši sjaj (0.55 → 0.35) — ređe, mirnije „prelamanje".
+    float spec = pow(clamp(ridge, 0.0, 1.0), 12.0);
+    col += spec * 0.35 * (0.5 + 0.5 * n) * warp;
 
     // Ivice se blago povlače u papir — slabije i dalje od centra, da mrlja zadrži boju.
+    // Korak 16: 0.30 → 0.22 (papir ne sme da izbeli kadar).
     float edge = smoothstep(0.62, 1.20, length(p));
-    col = mix(col, uPalette[3], edge * 0.30);
+    col = mix(col, uPalette[3], edge * 0.22);
 
     /*
      * Razlivanje (spec 13 → E): RADIJALNI front iz tačke gde je kap napustila kadar
@@ -157,12 +165,18 @@ export const FRAGMENT_SHADER = /* glsl */ `
     // da mint i rose izađu iz skoro-belog. Paleta je inače po konstrukciji izbeljena.
     float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
     col = mix(vec3(luma), col, 1.35);
-    col = clamp((col - 0.5) * 1.12 + 0.5, 0.0, 1.0);
+    // Korak 16: 1.12 → 1.06 — mirniji kadar (manje razvučen kontrast).
+    col = clamp((col - 0.5) * 1.06 + 0.5, 0.0, 1.0);
 
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }
 `;
 
-/** Boje iz `data/design-dna.json` → visual_effects.background_effects.params.color_palette. */
-export const HERO_PALETTE = ["#57BFA8", "#C9E9E1", "#FBDCE9", "#FAF6F1"] as const;
+/**
+ * Boje iz `data/design-dna.json` → visual_effects.background_effects.params.color_palette (0..3:
+ * mint → mint-soft → rose-soft → paper). Peta boja je token `--mint-deep` (#2E8E7B, app/globals.css):
+ * NIJE deo DNA palete, već dublji mint kojim se od koraka 16 seni nizak deo polja da miran kadar ne
+ * otpliva u skoro-belo. Kroz `THREE.Color` ide u linearni prostor pre shadera (LiquidCanvas).
+ */
+export const HERO_PALETTE = ["#57BFA8", "#C9E9E1", "#FBDCE9", "#FAF6F1", "#2E8E7B"] as const;

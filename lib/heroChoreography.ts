@@ -21,7 +21,7 @@
  *  kap        0.24–0.32 raste na vrhu dlačica; 0.32–0.42 pada (t²) do ispod kadra
  *  frost      0.30–0.42  clip-path s leva (iz slota)
  *  razlivanje 0.36–0.78  radijalno iz tačke izlaska kapi; sparkle env 0.6 → 0.9 → 0.6
- *  copy izlaz strip 0.55–0.65, lead reči 0.56–0.72, CTA 0.60–0.78, h1 reči 0.62–0.80; hidden 0.85
+ *  copy izlaz strip 0.55–0.65, lead reči 0.56–0.72, CTA 0.60–0.78, h1 reči 0.62–0.80; hidden 0.90
  *  cap nazad  0.58–0.64 vraća se nad vrat; 0.64–0.74 spušta se i zavrće (360°)
  *  polica     0.62–0.70 baza sleće na ivicu .hero-overlap; 0.62–0.78 scale 1 → 0.55, x 75 % → 70 %
  *  senka      0.70–0.80  kontakt senka na polici
@@ -61,8 +61,14 @@ export const SPARKLE_MIN = 0.6;
 export const SPARKLE_MAX = 0.9;
 /** Reč pri izlasku pada za 18 px. */
 export const WORD_EXIT_Y = 18;
-/** Od 0.85 copy je `display: none` — iznad je kadra, a provera iz MOTION.md ostaje poštena. */
-export const COPY_HIDDEN_P = 0.85;
+/**
+ * Od 0.90 copy je `display: none` — iznad je kadra, a provera iz MOTION.md ostaje poštena
+ * (display:none nulira offsetParent, pa reči s opacity 0 ne padnu u proveru; visibility:hidden ne bi).
+ * Do koraka 16 bilo 0.85; podignuto da kontejner nestane tek dobrano posle izlaza (CTA opacity 0 na 0.78).
+ */
+export const COPY_HIDDEN_P = 0.9;
+/** Reduced motion: kontejner copy-ja je izbledeo do ovog p (nezavisno od `display:none` praga gore). */
+export const COPY_FADE_END = 0.85;
 
 export const ACTS = {
   idle: [0, 0.1],
@@ -239,7 +245,7 @@ export function heroChoreography(progress: number): HeroChoreography {
     frostClip: 100 * (1 - power2Out(ramp(ACTS.frost[0], ACTS.frost[1], p))),
     copyInteractive: p < ACTS.copyExit[0],
     copyHidden: p >= COPY_HIDDEN_P,
-    copyFade: 1 - smoothstep(ACTS.copyExit[0], COPY_HIDDEN_P, p),
+    copyFade: 1 - smoothstep(ACTS.copyExit[0], COPY_FADE_END, p),
   };
 }
 

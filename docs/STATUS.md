@@ -1,8 +1,82 @@
 # STATUS
 
-Stanje posle koraka **15 — brze akcije: dodavanje u korpu direktno sa kartice proizvoda**
-(ispod: korak 14, 13, 12, 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta
+Stanje posle koraka **16 — hero shader: ređe polje i dublji mint; CTA ne skaču na izlazu**
+(ispod: korak 15, 14, 13, 12, 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta
 radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 16 — hero shader: ređe polje i dublji mint; CTA ne skaču na izlazu
+
+Fino podešavanje „tečnog laka" (`components/hero/liquidShader.ts`): manja gustina (ređe, krupnije
+mrlje, manje uvijanja) i mirnija boja u miru (dublji mint umesto skoro-belog). Usput ispravljen bug:
+CTA dugmad su na kraju hero zone „silazila skroz dole".
+
+### Shader — konačni parametri (u okvirima iz specifikacije)
+
+| šta | HEAD | korak 16 |
+| --- | --- | --- |
+| prostorna frekvencija polja (`p` množilac) | 1.15 | **0.80** (krupnije mrlje) |
+| domenski warp — prolaz 2 (`q`) | 1.35 | **0.85** |
+| domenski warp — završni (`r`) | 1.25 | **0.80** |
+| fBm oktave | 4 | **3** (nema finih nabora, jeftinije) |
+| spec pojas `pow(ridge, …)` | 8.0 | **12.0** (uži) |
+| spec jačina (miran kadar) | 0.55 | **0.35** (ređe/tiše „prelamanje") |
+| pragovi palete mint→mint-soft | `smoothstep(0.35,0.82)` | **`(0.45,0.90)`** |
+| papir | `smoothstep(0.92,1.00)` | **`(0.96,1.00)`** |
+| dublji mint u niskom polju | — | **`mix(--mint-deep, col, smoothstep(0,0.45,n))`** |
+| ivični fade u papir | `edge*0.30` | **`edge*0.22`** |
+| završni kontrast | 1.12 | **1.06** |
+
+`--mint-deep` (#2E8E7B iz `app/globals.css`) dodat kao **5. boja** u `uPalette` (kroz `THREE.Color`,
+linearni prostor) — nije hardkodovan u GLSL. `uPour` logika, `uPourOrigin`, hvatanje boje, ink
+pravilo, kap, bočica i koreografija su **netaknuti**. Globalni `col *= 0.92` nije bio potreban —
+merenje je dalo −13,7 % bez njega. Razlivena boja (`uPour → 1`) i njen odsjaj ostaju kao pre.
+
+### Merenje (Playwright, 1440×900, svetla tema, `p = 0`, prosek 3 snimka u razmaku 1 s)
+
+Snimak PRE = HEAD verzija shadera (isti `git`, samo taj fajl vraćen), POSLE = korak 16, na
+bounding boxu `#hero canvas`. „Polje" = isti box sa maskiranim tekstom i bočicom (identični u oba,
+razlika je pozadina — kako specifikacija i traži).
+
+| metrika | PRE | POSLE | Δ | cilj | prošlo |
+| --- | --- | --- | --- | --- | --- |
+| srednja luminanca — polje | 0.829 | 0.716 | **−13,7 %** | −10…−15 % | ✅ |
+| varijansa Laplasijana — polje (gustina) | 9,79e−4 | 2,30e−4 | **−76,5 %** | ≥ −30 % | ✅ |
+| srednja luminanca — ceo box | 0.780 | 0.720 | −7,6 % | (razblaženo tekstom/bočicom) | — |
+| varijansa Laplasijana — ceo box | 7,81e−3 | 6,65e−3 | −14,8 % | (isto) | — |
+| kontrast h1 (`--hero-ink` na pozadini, tekst sakriven) | — | **14,46 : 1** | — | ≥ 4,5 : 1 | ✅ |
+| p95 frame, 3 s skrola kroz zonu | — | **14 ms** (mean 8,2) | — | ≤ 17 ms | ✅ |
+
+Ceo box je razblažen NEPROMENJENIM tekstom i bočicom (tamna kapica, svetla bočica) i njihovim
+ivicama — one dominiraju Laplasijanom i identične su u oba snimka, pa je pošteno merilo polje
+(pozadina). Screenshotovi na `p = 0.5` (pour 0.26, delimično) i `p = 0.8` (pour 1, boja pokriva
+kadar) potvrdili razlivanje kao pre; ink pravilo radi (uhvaćena boja #D9C3AC je svetla → `data-ink`
+ostaje `dark`, kako i treba). Tamna tema: hero i dalje svetao, bez sive mrlje vela (korak 14 C).
+
+### CTA bug — uzrok i popravka
+
+**Uzrok:** CTA red i strip su reflow-om podignuti za `−copyShift` (visina wordmarka) preko `y`
+transforma. Izlazni pisac (`ctaY`/`stripY`) je od `p ≥ 0.55` pisao **preko** tog istog `y` (dva
+quickSetter-a na istom svojstvu), pa je reflow offset nestao i red je skočio ceo `copyShift` naniže
+— „sišao skroz dole". (Naslov i lead nisu imali problem: njihov reflow je na kontejneru, a izlaz na
+reč-spanovima — različiti čvorovi.)
+
+**Popravka (`components/hero/Hero.tsx`):** CTA i strip izlaze **samo opacity-jem**; `y` drži jedino
+reflow petlja (uklonjeni `ctaY`/`stripY`). Dok su vidljivi, pomera ih isključivo stage lag. Kontejner
+copy-ja ostaje `display:none` (potrebno da provera iz MOTION.md ostane poštena — nulira `offsetParent`),
+ali tek na `p ≥ 0.90` (`COPY_HIDDEN_P`, bilo 0.85); `copyFade` za reduced motion odvojen u
+`COPY_FADE_END = 0.85` da se prozor ne razvuče.
+
+**Provera** (bounding rect CTA reda relativno na stage, `p = 0.50…1.00` korak 0.05): `relTop`
+konstantan **391.9 px** dok je opacity > 0 (najveći skok između susednih koraka **0 px**, prag 4 px);
+opacity 0 od `p = 0.78`; `display:none` tek od `p ≥ 0.90`; reload na `p = 0.90` daje isto stanje
+(391.9 / opacity 0). Provera na dnu strane: 0 elemenata sa `opacity:0`, 0 `reveal-state="pending"`,
+0 `.reveal-word` van `#hero`.
+
+### Provera (gotovo)
+
+`npm run typecheck` ✓ · `npm run lint` (0) ✓ · `npx vitest run` (215) ✓ · `npm run build` ✓
+(prvi pokušaj pao uz native heap-corruption na 62/83 stranica — sudar sa paralelnim `next dev` nad
+istim `.next`-om; drugi pokušaj čist).
 
 ## Korak 15 — brze akcije u korpu sa kartice
 

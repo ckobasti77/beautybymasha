@@ -118,7 +118,7 @@ istina o mestu bočice na ekranu: iz nje bočica vozi i svoj položaj i DOM kont
 | frost | 0.30–0.42 | `.nav-frost::before` `clip-path: inset(0 X% 0 0)` 100 → 0 iz logo slota (`--frost-clip` na `.nav-bar`) |
 | razlivanje | 0.36–0.78 | shader radijalno razliva uhvaćenu boju (75 % boja + 25 % mint); `envMapIntensity` 0.6 → 0.9 (0.50) → 0.6 |
 | ink | front preko copy-ja | `--hero-ink` po kontrastu (taman ili papir), scrim menja veo |
-| copy izlazi | 0.55–0.80 | strip 0.55–0.65, reči lead-a 0.56–0.72, CTA 0.60–0.78, reči h1 0.62–0.80; reči od POSLEDNJE ka prvoj (`y +18`, opacity 0); klik gasi 0.55, `hidden` 0.85 |
+| copy izlazi | 0.55–0.80 | strip 0.55–0.65, reči lead-a 0.56–0.72, CTA 0.60–0.78, reči h1 0.62–0.80; reči od POSLEDNJE ka prvoj (`y +18`, opacity 0); CTA/strip su blokovi — izlaze SAMO opacity-jem, `y` drži reflow (−copyShift) pa ih dok su vidljivi pomera samo stage lag; klik gasi 0.55, `hidden` (display:none) 0.90 |
 | cap se vraća | 0.58–0.64 / 0.64–0.74 | nad vrat / spušta se i zavrće 360° |
 | polica | 0.62–0.70 / 0.62–0.78 | baza sleće na ivicu `.hero-overlap` (`stageH − lag(p)` u stage-u) / scale 1 → 0.55 o bazi, x 75 % → 70 %; od 0.70 stoji na ivici i odlazi s njom, bez fade-a |
 | kontakt senka | 0.70–0.80 | `#hero-shelf-shadow` (DOM elipsa na omotaču) opacity 0 → 1, x i širina prate bočicu |
@@ -129,7 +129,8 @@ istina o mestu bočice na ekranu: iz nje bočica vozi i svoj položaj i DOM kont
 transform na spanovima, nikad blur po frejmu). Zato je `.reveal-word` u `#hero` dozvoljen posle
 završetka; van heroja i dalje mora da bude 0. Intro (reči, CTA, strip, ispis potpisa) se
 prekida (`progress(1)` / `introRef.finish()`) čim `p` preuzme iste čvorove — nikad dva pisca.
-Na p ≥ 0.85 kontejner je `display: none` — tada je iznad kadra, a provera na dnu ostaje poštena.
+Na p ≥ 0.90 kontejner je `display: none` — tada je iznad kadra, a provera na dnu ostaje poštena
+(`display:none` nulira `offsetParent`, pa reči s opacity 0 ne uđu u proveru; `visibility:hidden` bi ih ostavio u njoj).
 
 Bočica je GLB iz Blendera (`public/models/bocica.glb`, kroz Blender MCP, zapis u
 `scripts/bottle.py`: `Glass`, `Liquid`, `Cap` + `BrushStem` i `BrushHair` kao deca zatvarača),

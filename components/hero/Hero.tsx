@@ -442,10 +442,11 @@ export function Hero({ colors }: { colors: readonly string[] }) {
           const titleY = wordY(titleWords);
           const leadOpacity = wordOpacity(leadWords);
           const leadY = wordY(leadWords);
+          // CTA i strip su BLOKOVI: izlaze SAMO opacity-jem. Njihov `y` drži reflow petlja (jedini
+          // pisac tog transforma), pa ovde nema zasebnog `y` settera — dva pisca na istom `y` su do
+          // koraka 16 obarala reflow i CTA red je „sišao skroz dole" na p ≥ 0.55.
           const ctaOpacity = q(cta, "opacity");
-          const ctaY = q(cta, "y", "px");
           const stripOpacity = q(strip, "opacity");
-          const stripY = q(strip, "y", "px");
           const dropY = dropEl ? q(dropEl, "y", "px") : null;
           const dropScale = dropEl ? q(dropEl, "scale") : null;
           const pourScale = pourEl ? q(pourEl, "scale") : null;
@@ -713,12 +714,11 @@ export function Hero({ colors }: { colors: readonly string[] }) {
                   leadOpacity[i](w.opacity);
                   leadY[i](w.y);
                 }
-                const ce = blockExitAt(p, EXIT.cta);
-                ctaOpacity(ce.opacity);
-                ctaY(ce.y);
-                const se = blockExitAt(p, EXIT.strip);
-                stripOpacity(se.opacity);
-                stripY(se.y);
+                // CTA i strip: samo opacity blednu (blockExitAt), `y` ostaje na reflow offsetu koji
+                // petlja gore drži konstantnim — dok su vidljivi pomera ih isključivo stage lag, bez
+                // skoka. Opacity 0 do kraja prozora (CTA 0.78, strip 0.65).
+                ctaOpacity(blockExitAt(p, EXIT.cta).opacity);
+                stripOpacity(blockExitAt(p, EXIT.strip).opacity);
               }
             }
             setCopyInteractive(c.copyInteractive);
