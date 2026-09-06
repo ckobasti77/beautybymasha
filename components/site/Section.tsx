@@ -10,10 +10,13 @@ import type { ReactNode } from "react";
 export function Section({
   id,
   tone = "paper",
+  pad = "normal",
   className,
   children,
 }: {
   id?: string;
+  /** `tight` = minimalni vertikalni ritam (sekcija ispod heroja, da stane u ekran). */
+  pad?: "normal" | "tight";
   /** `wash` je najsvetlija mint podloga za sekcije koje treba odvojiti od papira. */
   tone?: "paper" | "wash" | "sunken";
   className?: string;
@@ -21,7 +24,7 @@ export function Section({
 }) {
   const bg = tone === "wash" ? "bg-tint-wash" : tone === "sunken" ? "bg-bg-sunken" : "bg-bg";
   return (
-    <section id={id} className={["section-pad", bg, className].filter(Boolean).join(" ")}>
+    <section id={id} className={[pad === "tight" ? "section-pad-tight" : "section-pad", bg, className].filter(Boolean).join(" ")}>
       <div className="mx-auto w-full max-w-content px-5 md:px-8">{children}</div>
     </section>
   );

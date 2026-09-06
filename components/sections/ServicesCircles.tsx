@@ -17,7 +17,7 @@ import { countServicesIn, serviceCategories } from "@/lib/serviceCategories";
  */
 export function ServicesCircles() {
   return (
-    <Section id="usluge">
+    <Section id="usluge" pad="tight">
       <SectionHeading
         eyebrow="Usluge"
         title="Pet grupa, jedan cenovnik"
@@ -25,7 +25,7 @@ export function ServicesCircles() {
         lead="Svaka grupa vodi pravo u cenovnik, na svoj deo spiska sa cenama i procenjenim trajanjem."
       />
 
-      <Reveal as="ul" stagger className="mt-14 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-5">
+      <Reveal as="ul" stagger className="mt-10 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-5">
         {serviceCategories.map((c) => {
           const photo = photoById(c.photoId);
           return (

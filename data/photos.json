@@ -475,5 +475,45 @@
       1080,
       1350
     ]
+  },
+  "bbm-25": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-25-card-1350.avif",
+    "photo": "/photos/bbm-25-photo-1350.avif",
+    "aspect": 1.0,
+    "alt": "Depilacija toplim voskom: kozmeticarka spatulom nanosi vosak na potkolenicu, roze peskir i sveca",
+    "tags": [
+      "depilacija",
+      "vosak",
+      "noge",
+      "salon"
+    ],
+    "use": [
+      "usluge-depilacija"
+    ]
+  },
+  "bbm-26": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-26-card-1350.avif",
+    "photo": "/photos/bbm-26-photo-1350.avif",
+    "aspect": 1.0,
+    "alt": "Tretman lica u salonu: kozmeticarka cetkicom nanosi masku na obraz klijentkinje zatvorenih ociju",
+    "tags": [
+      "lice",
+      "maska",
+      "nega-lica",
+      "salon"
+    ],
+    "use": [
+      "usluge-ostalo"
+    ]
   }
 }

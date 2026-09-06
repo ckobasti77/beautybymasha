@@ -36,7 +36,7 @@ const CATEGORIES: readonly ServiceCategory[] = [
     title: "Depilacija",
     blurb: "Topli vosak i šećerna pasta, žensko i muško telo.",
     groups: ["depilacija-vosak-z", "depilacija-vosak-m", "depilacija-pasta-z", "depilacija-pasta-m"],
-    photoId: "bbm-11",
+    photoId: "bbm-25",
   },
   {
     key: "masaza",
@@ -57,7 +57,7 @@ const CATEGORIES: readonly ServiceCategory[] = [
     title: "Ostalo",
     blurb: "Brow lamination, kana, šminkanje i detox paket. Cena na upit.",
     groups: ["ostalo"],
-    photoId: "bbm-23",
+    photoId: "bbm-26",
   },
 ];
 
