@@ -83,6 +83,9 @@ export type Cart = {
   hydrated: boolean;
   add: (slug: string, qty?: number) => void;
   setQty: (slug: string, qty: number) => void;
+  /** Skini jedan komad; na 0 uklanja liniju. Čita živu korpu (kao `add`), pa uzastopni
+   *  klikovi pre re-rendera ne rade sa ustajalim brojem. */
+  decrement: (slug: string) => void;
   remove: (slug: string) => void;
   clear: () => void;
 };
@@ -93,8 +96,12 @@ export function useCart(): Cart {
 
   const add = useCallback((slug: string, qty = 1) => write(addToCart(read(), slug, qty)), []);
   const setQty = useCallback((slug: string, qty: number) => write(setCartQty(read(), slug, qty)), []);
+  const decrement = useCallback((slug: string) => {
+    const current = read().find((i) => i.slug === slug)?.qty ?? 0;
+    write(setCartQty(read(), slug, current - 1));
+  }, []);
   const remove = useCallback((slug: string) => write(removeFromCart(read(), slug)), []);
   const clear = useCallback(() => write([]), []);
 
-  return { items, count: cartCount(items), hydrated, add, setQty, remove, clear };
+  return { items, count: cartCount(items), hydrated, add, setQty, decrement, remove, clear };
 }

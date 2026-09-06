@@ -347,6 +347,14 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
   }
 }
 
+/* Minimalni ritam: sekcija odmah ispod heroja mora da bude niza od ekrana. */
+@utility section-pad-tight {
+  padding-block: 2rem;
+  @media (width >= 1024px) {
+    padding-block: 2.5rem;
+  }
+}
+
 /*
  * Frosted slojevi — SAMO lepljiva navigacija i donja akciona traka (admin).
  *
@@ -369,6 +377,147 @@ html.js [data-logo-sig="pending"] [data-sig-glyph] {
     border: 1px solid var(--glass-line);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+  }
+
+  /*
+   * Pilula cene sa brzim dodavanjem (spec 15). Grid `0px auto 0px` →
+   * `var(--cart-btn) auto var(--cart-btn)` širi karticu simetrično oko centra i
+   * otkriva dugmad; bočne ćelije seku dugmad dok su na 0px. Trake su u px (ne fr) jer
+   * `overflow:hidden` ćelije daju 0 min-content, pa fr u auto-širokom gridu kolabira.
+   * `--cart-btn` prati veličinu dugmeta: 44 na dodir, 36 na desktopu, 32 kompaktno.
+   * `[data-ready]` gasi tranziciju na prvom kadru (touch bi inače „skočio" pri hidrataciji).
+   */
+  .cart-pill {
+    --cart-btn: 44px;
+    display: inline-grid;
+    grid-template-columns: 0px auto 0px;
+    align-items: center;
+    max-width: 100%;
+    overflow: hidden;
+    transition: background-color 150ms var(--ease-out-expo), color 150ms var(--ease-out-expo);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .cart-pill {
+      --cart-btn: 36px;
+    }
+    .cart-pill-compact {
+      --cart-btn: 32px;
+    }
+  }
+  .cart-pill[data-ready] {
+    transition:
+      grid-template-columns 240ms var(--ease-out-expo),
+      background-color 150ms var(--ease-out-expo),
+      color 150ms var(--ease-out-expo);
+  }
+  .cart-pill[data-expanded="true"] {
+    grid-template-columns: var(--cart-btn) auto var(--cart-btn);
+  }
+  /*
+   * Dodir (bez hovera): pilula je uvek proširena i puni širinu kolone. Dve fiksne
+   * 44px kontrole + čitljiva cena ne stanu u kolonu 2-kolonskog zida na 390 px, pa
+   * bočne trake flex-uju (`minmax(0,44px)`): cena (auto) ima prednost i nikad se ne
+   * seče, dugmad uzmu preostali prostor do 44 px. Bez horizontalnog prekoračenja.
+   */
+  @media (hover: none) {
+    .cart-pill {
+      width: 100%;
+      grid-template-columns: minmax(0, 44px) auto minmax(0, 44px) !important;
+    }
+    .cart-pill-side > button {
+      width: 100% !important;
+    }
+  }
+  .cart-pill-side {
+    display: flex;
+    overflow: hidden;
+  }
+  .cart-pill-side-left {
+    justify-content: flex-end;
+  }
+  .cart-pill-side-right {
+    justify-content: flex-start;
+  }
+  .cart-pill-center {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .cart-pill-num {
+    display: inline-flex;
+    align-items: baseline;
+  }
+  .cart-pill-num-in {
+    animation: cart-pill-num-in 160ms var(--ease-out-expo);
+  }
+  .cart-pill-num-out {
+    position: absolute;
+    inset: 0;
+    justify-content: center;
+    animation: cart-pill-num-out 160ms var(--ease-out-expo);
+  }
+  .cart-pill-bump {
+    animation: cart-pill-bump 180ms var(--ease-out-expo);
+  }
+  .cart-pill-shake {
+    animation: cart-pill-shake 200ms ease-in-out;
+  }
+  @keyframes cart-pill-num-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.45em);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes cart-pill-num-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-0.45em);
+    }
+  }
+  @keyframes cart-pill-bump {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes cart-pill-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-2px);
+    }
+    75% {
+      transform: translateX(2px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cart-pill,
+    .cart-pill[data-ready] {
+      transition: none;
+    }
+    .cart-pill-num-in,
+    .cart-pill-num-out,
+    .cart-pill-bump,
+    .cart-pill-shake {
+      animation: none;
+    }
   }
 
   .nav-bar {

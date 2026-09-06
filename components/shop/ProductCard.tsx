@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
+import { CartPill } from "@/components/shop/CartPill";
 import { ProductSwatch } from "@/components/shop/ProductSwatch";
 import { formatRsd } from "@/lib/format";
 import { BRAND_LABELS, type Product } from "@/lib/products";
@@ -45,20 +46,25 @@ export function ProductCard({
   price,
   sizes = "(min-width: 1024px) 220px, (min-width: 768px) 30vw, 40vw",
   priority = false,
+  quickAdd = true,
 }: {
   product: Product;
   price?: LivePrice;
   sizes?: string;
   priority?: boolean;
+  /** `false` isključuje pilulu za dodavanje u korpu (npr. admin katalog). */
+  quickAdd?: boolean;
 }) {
   const soldOut = price ? !price.inStock : product.stock === 0;
   const discounted = price ? price.finalPriceRsd < price.priceRsd : false;
 
+  // Dugmad ne smeju u `<Link>` (nevalidan HTML), pa pilula živi ISPOD linka kao
+  // zaseban klijentski čvor; ostatak kartice i dalje vodi na stranu proizvoda.
   return (
-    <li className="group" data-shade={product.hex}>
+    <li className="group flex h-full flex-col" data-shade={product.hex}>
       <Link
         href={`/shop/${product.slug}`}
-        className="flex h-full flex-col rounded-md p-2 text-center focus-ring"
+        className="flex flex-1 flex-col rounded-md px-2 pt-2 text-center focus-ring"
       >
         <span className="relative mx-auto block w-full max-w-36">
           <ProductSwatch hex={product.hex} finish={product.finish} className="w-full">
@@ -94,10 +100,24 @@ export function ProductCard({
           {BRAND_LABELS[product.brand]} · {FINISH_LABELS[product.finish]}
         </span>
         <span className="mt-1 block text-sm font-semibold text-fg">{product.name}</span>
-        <span className="mt-1 block text-sm">
-          <ProductPrice product={product} price={price} />
-        </span>
+        {quickAdd ? null : (
+          <span className="mt-1 block text-sm">
+            <ProductPrice product={product} price={price} />
+          </span>
+        )}
       </Link>
+
+      {quickAdd ? (
+        <div className="mt-1 flex justify-center px-2 pb-2">
+          <CartPill
+            slug={product.slug}
+            name={product.name}
+            basePriceRsd={price?.priceRsd ?? product.priceRsd}
+            finalPriceRsd={price?.finalPriceRsd ?? product.priceRsd}
+            inStock={!soldOut}
+          />
+        </div>
+      ) : null}
     </li>
   );
 }

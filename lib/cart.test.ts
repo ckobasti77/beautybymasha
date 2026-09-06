@@ -95,6 +95,20 @@ describe("izmene korpe", () => {
     expect(setCartQty(korpa, "vintage", 0)).toEqual([{ slug: "gumdrop", qty: 2 }]);
   });
 
+  it("negativna količina takođe izbacuje stavku", () => {
+    expect(setCartQty(korpa, "vintage", -3)).toEqual([{ slug: "gumdrop", qty: 2 }]);
+  });
+
+  it("postavljanje preko gornje granice po liniji se svodi na maksimum", () => {
+    expect(setCartQty(korpa, "vintage", 999)).toContainEqual({ slug: "vintage", qty: MAX_QTY_PER_LINE });
+  });
+
+  it("brza dugmad ne prelaze granicu po liniji koliko god puta se dodaje", () => {
+    let items: CartItem[] = [];
+    for (let i = 0; i < MAX_QTY_PER_LINE + 5; i++) items = addToCart(items, "vintage", 1);
+    expect(items).toEqual([{ slug: "vintage", qty: MAX_QTY_PER_LINE }]);
+  });
+
   it("izbacivanje nepostojeće stavke ne dira korpu", () => {
     expect(removeFromCart(korpa, "ne-postoji")).toEqual(korpa);
   });

@@ -83,18 +83,52 @@ const JUMP_PX = 200;
 /**
  * Ikona korpe sa brojem stavki. Broj se ne crta dok se korpa ne pročita iz
  * `localStorage` — inače bi se server i klijent razišli na prvom renderu.
+ *
+ * Na svaku promenu count-a badge dobija „bump" (scale 1.25 → 1); prvi put kad korpa
+ * iz 0 postane 1, ikona se kratko zaljulja (±8°). WAAPI, bez GSAP-a i bez novih paketa;
+ * `prefers-reduced-motion` se poštuje.
  */
 function CartLink() {
   const { count, hydrated } = useCart();
+  const badgeRef = useRef<HTMLSpanElement>(null);
+  const iconRef = useRef<SVGSVGElement>(null);
+  const prevCount = useRef(count);
+
+  useEffect(() => {
+    const prev = prevCount.current;
+    prevCount.current = count;
+    if (!hydrated || count === prev) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    badgeRef.current?.animate(
+      [{ transform: "scale(1.25)" }, { transform: "scale(1)" }],
+      { duration: 220, easing: "cubic-bezier(0.34, 1.56, 0.64, 1)" },
+    );
+    if (prev === 0 && count > 0) {
+      iconRef.current?.animate(
+        [
+          { transform: "rotate(0deg)" },
+          { transform: "rotate(-8deg)" },
+          { transform: "rotate(8deg)" },
+          { transform: "rotate(0deg)" },
+        ],
+        { duration: 300, easing: "ease-in-out" },
+      );
+    }
+  }, [count, hydrated]);
+
   return (
     <Link
       href="/korpa"
       aria-label={hydrated && count > 0 ? `Korpa, ${count} kom` : "Korpa"}
       className={`relative inline-flex ${ICON_LINK}`}
     >
-      <ShoppingBag size={20} strokeWidth={1.5} aria-hidden />
+      <ShoppingBag ref={iconRef} size={20} strokeWidth={1.5} aria-hidden />
       {hydrated && count > 0 ? (
-        <span className="num absolute right-1 top-1 inline-flex min-w-4 justify-center rounded-pill bg-brand px-1 text-[10px] font-bold leading-4 text-brand-fg">
+        <span
+          ref={badgeRef}
+          className="num absolute right-1 top-1 inline-flex min-w-4 justify-center rounded-pill bg-brand px-1 text-[10px] font-bold leading-4 text-brand-fg"
+        >
           {count > 9 ? "9+" : count}
         </span>
       ) : null}

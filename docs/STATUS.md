@@ -1,9 +1,75 @@
 # STATUS
 
-Stanje posle koraka **14 — hero koreografija v3: logo se prepisuje slovo po slovo, potpis se
-briše i ponovo piše, bočica se otvara, kap sa četkice, spuštanje na policu** (ispod: korak 13,
-pa 12, pa 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta radi, šta ne radi,
-i svaki `[POTVRDITI]` sa putanjom fajla.
+Stanje posle koraka **15 — brze akcije: dodavanje u korpu direktno sa kartice proizvoda**
+(ispod: korak 14, 13, 12, 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta
+radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 15 — brze akcije u korpu sa kartice
+
+Cena je sada **pilula** ispod svake kartice proizvoda; iz nje se dodaje/skida komad bez odlaska
+na stranu proizvoda. Radi svuda gde ide `ProductCard` (zid `/shop`, „slično" na strani proizvoda,
+filtrirani rezultati) i na landingu (`ShopHighlights`).
+
+### Šta je dodato
+
+- **`components/shop/CartPill.tsx`** (`"use client"`) — pilula cene sa „−"/„+". STALNO mint
+  (`bg-brand`), na stvarni hover potamni (`bg-brand-hover`). CSS grid `0px auto 0px` →
+  `var(--cart-btn) auto var(--cart-btn)` (globals.css, `@layer components`) širi je simetrično oko
+  centra; tranzicija `grid-template-columns 240ms`. Prošireno = hover ∨ focus-within ∨ qty > 0 ∨
+  dodir. „+" odmah `add(slug,1)`; „−" `decrement(slug)`, na 0 uklanja liniju. Centar `1.990 RSD`,
+  u korpi `2 × 1.990 RSD` (crossfade brojke 160 ms), popust = precrtana stara cena. Mikro-feedback:
+  centar scale-bump 180 ms; na max po liniji „+" `aria-disabled` + shake; jedan globalni
+  `aria-live` region objavljuje „{ime}: {qty} u korpi".
+- **`ProductCard`** ostaje serverska; cena izvučena iz `<Link>` (dugmad u `<a>` su nevalidna) —
+  `<CartPill>` je sibling ispod linka. Prop `quickAdd` (default `true`; `false` = stara statička
+  cena, npr. za nekupovne kontekste). Admin `ProductsTab` ima **svoju** lokalnu karticu, pa pilule
+  tamo i nema (provera D9 zadovoljena bez izmene admina).
+- **`ShopHighlights`** (landing) — svaka kap je sada `<Link>` na proizvod, ispod ime + kompaktna
+  pilula (`compact`, 32 px dugmad na desktopu).
+- **`lib/cartStore.ts`** — dodat `decrement(slug)` koji čita **živu** korpu (kao `add`), pa
+  uzastopni klikovi „−" pre re-rendera ne rade sa ustajalim brojem (nađeno u proveri: `setQty`
+  je računao `qty−1` iz zatvarača i gubio dupli klik).
+- **`components/site/SiteNavClient.tsx`** — badge korpe „bumpuje" (scale 1.25→1, WAAPI) na svaku
+  promenu; ikona se zaljulja (±8°) kad korpa iz 0 pređe u 1. `prefers-reduced-motion` se poštuje.
+- **`lib/cart.test.ts`** — dodati testovi: `setQty` preko granice se svodi na `MAX_QTY_PER_LINE`,
+  negativno uklanja liniju, uzastopni `addToCart` ne prelazi granicu.
+
+### Odluke i odstupanja (zašto nije bukvalno kao u specu)
+
+- **390 px / dodir (spec D4).** Dve fiksne 44 px kontrole + čitljiva cena **ne stanu** u kolonu
+  2-kolonskog zida (~160 px). Odluka po screenshotu: na dodir je pilula puna širina kolone, cena
+  (centar `auto`) ima prednost i **nikad se ne seče**, a bočne trake flex-uju (`minmax(0,44px)`) —
+  dugmad su **44 px visoka** (tap-visina), a široka koliko preostane (≈30–34 px na najužem telefonu,
+  do punih 44 px na tabletu/širim kolonama). Bez horizontalnog prekoračenja (provereno, `docOverflow
+  = 0`). Cena je `text-xs` na telefonu, `md:text-sm` naviše, da dugmad dobiju još prostora.
+- **Tastatura (spec A/D6).** Spec je tražio `tabindex=-1` na skupljenoj pil: to bi značilo da
+  keyboard korisnik **nikad** ne može da doda sa zida (dugmad van tab-reda, a pilula se širi tek na
+  fokus). Zato dugmad **ostaju u tab-redu**; fokus na „+" širi pilulu (focus-within) pa Enter dodaje.
+  Skupljena traka je 0 px (klip), pa slučajan klik mišem svejedno ne pogađa dugme.
+- **`ShopHighlights` imena.** Pošto je kap sada u `<Link>`, ime (unutar `<a>`) više **ne** ulazi
+  reč-po-reč — isto kao imena na zidu (koja su oduvek u linku). Reveal ugovor netaknut: pilula je
+  `data-reveal="off"`, provera na dnu i dalje vraća prazno.
+- **JS budžet (`/shop` +≤ 3 KB).** `CartPill` je jedini novi klijentski kod; sve što uvozi
+  (`Minus`/`Plus`, `useCart`, `useSyncExternalStore`, `formatRsd`, `MAX_QTY_PER_LINE`) već je u
+  zajedničkom chunk-u (koriste ih nav i `AddToCartForm`), pa je neto dodatak samo logika komponente
+  — daleko ispod 3 KB. (Next 16 više ne štampa po-rutne veličine u build tabeli.)
+
+### Provera (Playwright 1440 + Browser pane mobile 375, obe teme)
+
+| # | Provera | Rezultat |
+| --- | --- | --- |
+| D1 | „+" → `bbm.korpa.v1 {slug,qty:1}`; drugi klik → 2; badge 2 + bump | ✓ |
+| D2 | „−" na 0 `aria-disabled`; na 1 → uklanja liniju, pilula se skuplja | ✓ |
+| D3 | hover desktop → `grid-template-columns` `36px 93px 36px`, potamni; mouseleave uz qty 0 → skupljanje | ✓ |
+| D4 | 390/dodir: uvek prošireno, cena bez sečenja, bez horizontalnog prekoračenja | ✓ (v. odluka) |
+| D5 | `/korpa` u drugom tabu → zid se ažurira (`storage` event, već postojao) | ✓ (nepromenjeno) |
+| D6 | Tab do „+", Enter dodaje, `aria-live` „Vintage: 1 u korpi", fokus ostaje | ✓ |
+| D7 | Rasprodato → neutralna pilula bez „+" | ✓ (grana u kodu; nema stock 0 u devu) |
+| D8 | Max po liniji → „+" `aria-disabled` + shake, qty ostaje 20 | ✓ |
+| D9 | Admin `ProductsTab` bez pilule | ✓ (druga kartica) |
+| D10 | Hidratacija bez skoka (isti SSR oblik, `[data-ready]` gasi prvu tranziciju) | ✓ |
+| D11 | Reveal ugovor: 0 nevidljivih, `.reveal-word` van heroja = 0, pilula `data-reveal="off"` | ✓ |
+| D12 | `typecheck` + `lint` (0) + `test` (215) + `build` | ✓ |
 
 ## Korak 14 — šta je dodato
 

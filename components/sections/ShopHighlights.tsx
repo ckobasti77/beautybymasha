@@ -1,11 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
+import { CartPill } from "@/components/shop/CartPill";
 import { ProductSwatch } from "@/components/shop/ProductSwatch";
 import { Section } from "@/components/site/Section";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { formatRsd } from "@/lib/format";
 import { bestsellers, products, type Product } from "@/lib/products";
 import { SPILL_LAYOUT, spillPicks } from "@/lib/swatchSpill";
 
@@ -94,21 +95,33 @@ export function ShopHighlights() {
 
       <Reveal as="ul" stagger={0.05} className="mt-12 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
         {PICKED.map((p) => (
-          <li key={p.slug} className="group">
-            {/* Fluidna veličina: fiksni px krug ume da bude širi od svoje kolone na 390 px. */}
-            <ProductSwatch hex={p.hex} finish={p.finish} className="mx-auto w-full max-w-32">
-              {p.localAvif ? (
-                <Image
-                  src={p.localAvif}
-                  alt=""
-                  fill
-                  sizes="128px"
-                  className="object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100"
-                />
-              ) : null}
-            </ProductSwatch>
-            <p className="mt-4 text-center text-sm font-semibold text-fg">{p.name}</p>
-            <p className="num mt-1 text-center text-sm text-fg-muted">{formatRsd(p.priceRsd)}</p>
+          <li key={p.slug} className="group flex flex-col">
+            {/* Kap + ime vode na proizvod; pilula je zaseban čvor ispod (dugmad ne smeju u <a>). */}
+            <Link href={`/shop/${p.slug}`} className="rounded-md focus-ring">
+              {/* Fluidna veličina: fiksni px krug ume da bude širi od svoje kolone na 390 px. */}
+              <ProductSwatch hex={p.hex} finish={p.finish} className="mx-auto w-full max-w-32">
+                {p.localAvif ? (
+                  <Image
+                    src={p.localAvif}
+                    alt=""
+                    fill
+                    sizes="128px"
+                    className="object-cover opacity-0 transition-opacity delay-300 duration-300 ease-out-expo can-hover:group-hover:opacity-100"
+                  />
+                ) : null}
+              </ProductSwatch>
+              <p className="mt-4 text-center text-sm font-semibold text-fg">{p.name}</p>
+            </Link>
+            <div className="mt-2 flex justify-center">
+              <CartPill
+                slug={p.slug}
+                name={p.name}
+                basePriceRsd={p.priceRsd}
+                finalPriceRsd={p.priceRsd}
+                inStock={p.stock > 0}
+                compact
+              />
+            </div>
             {p.bestseller ? (
               <p className="mt-2 text-center">
                 <Badge tone="rose">Bestseler</Badge>
