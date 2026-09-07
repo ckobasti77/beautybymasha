@@ -114,7 +114,8 @@ Imena i raspored **[POTVRDITI]**. Zato model kapaciteta ne traži imena — vidi
 | ADR-002 | **Shop:** ORLY, ~50 proizvoda, swatch boje + gloss hover, cene u RSD |
 | ADR-003 | **Auth:** Convex Auth, registracija = email + lozinka + potvrda lozinke. Isti login za kupce i admin, razlika je `role` |
 | ADR-004 | **Loyalty:** član dobija QR/člansku karticu u profilu; 10% popusta važi i na webu i u salonu (radnica skenira/ukuca u adminu) |
-| ADR-005 | **Hero:** WebGL shader „tečni lak" (mint/roze/krem), statičan gradijent kao fallback na mobilnom i uz `prefers-reduced-motion`. Od koraka 13 i 3D bočica (≥ 1024 px) sa ciklusom boja bestselera i razlivanjem uhvaćene boje; na telefonu umesto bočice velika swatch kap. **[POTVRDITI]** da li 3D bočica ide i na telefon (baterija, srednji telefoni) — zasebna odluka |
+| ADR-005 | ~~**Hero:** WebGL nikad ispod 768 px; 3D bočica samo ≥ 1024 px, na telefonu velika swatch kap.~~ **POVUČENO u koraku 18.** |
+| ADR-005b | **Hero (korak 18, zamenjuje ADR-005):** WebGL shader „tečni lak" i 3D bočica idu na **svakom ekranu** — odlučuje SPOSOBNOST uređaja, ne širina. Platno se montira ako ima `webgl2`, nije `prefers-reduced-motion`, `deviceMemory ≥ 4` ili `hardwareConcurrency ≥ 4` (polje kojeg nema prolazi) i prvi frejm se iscrta ispod 120 ms; ako prosek frejma u prve 2 s pređe 26 ms, platno se gasi i vraća se swatch kap (`HeroDrop`). Širina i dalje bira BUDŽET (ispod 768 px ili gruba kazaljka: dpr ≤ 1.25, bez antialiasa, low-power, 2 fBm oktave, staklo bez transmisije) i RASPORED (ispod 1024 px bočica je u donjem pojasu, 25 % visine, centrirana). **Razlog:** širina je bila gruba zamena za snagu — gasila je bočicu na telefonu koji je vozi bez problema, a palila je na slabom laptopu. Mereno na 390×844 uz 4× CPU throttle: prosek frejma 8,0 ms, p95 18,9 ms. |
 | ADR-006 | **Obim za demo:** sve četiri celine rade — landing, zakazivanje, shop, admin |
 
 ## 8. Otvorena pitanja za vlasnicu
@@ -128,7 +129,7 @@ Imena i raspored **[POTVRDITI]**. Zato model kapaciteta ne traži imena — vidi
 7. Pravila otkazivanja — na IG-u postoje highlight-ovi „PRAVILNIK" i „PRAVILA", nismo ih pročitali
 8. Fotografije u punoj rezoluciji (za demo koristimo Instagram, posle menjamo originalima)
 9. **[POTVRDITI]** Pet boja laka koje bočica u heroju ciklira — naš predlog su bestseleri, naizmenično ORLY / Entity: Vintage (mint), Kaleidoscope Eyes (roze), Red Rum Rouge (crvena), Modern Minimalist (nude), Crawford's Wine (bordo). Lista je na jednom mestu: `lib/heroColors.ts` → `HERO_COLOR_SLUGS`
-10. **[POTVRDITI]** Da li 3D bočica ide i na telefon (sada: nikad ispod 769 px, ADR-005 — umesto nje velika kap laka koja ciklira iste boje)
+10. ~~Da li 3D bočica ide i na telefon~~ — **odgovoreno u koraku 18: da.** Vidi ADR-005b; na telefonu je manja, u donjem pojasu, sa jeftinijim staklom i shaderom, a slab uređaj i dalje dobija kap.
 
 ## 9. Izvori
 

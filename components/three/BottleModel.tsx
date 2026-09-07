@@ -73,6 +73,13 @@ type BottleProps = {
   liquidPlane?: Plane;
   /** Živa boja tečnosti (hero ciklus) — kopira se svakog frejma, bez lerp-a. */
   liquidColor?: Color;
+  /**
+   * Mobilni budžet (korak 18 A): staklo BEZ `transmission`. Transmisija je drugi prolaz rendera —
+   * cela scena, uključujući fBm shader, crta se još jednom u render target. Na telefonu je to
+   * duplo, pa staklo postaje običan `MeshStandardMaterial` sa odsjajima okruženja i `opacity`
+   * 0.85: bočica se i dalje čita kao staklo, ali kroz nju se ne vidi izlomljena pozadina.
+   */
+  cheapGlass?: boolean;
 };
 
 function BottleMeshes({
@@ -83,9 +90,10 @@ function BottleMeshes({
   envIntensityRef,
   liquidPlane,
   liquidColor,
+  cheapGlass = false,
   geometries,
 }: BottleProps & { geometries: Geometries }) {
-  const glass = useRef<MeshPhysicalMaterial>(null);
+  const glass = useRef<MeshStandardMaterial>(null);
   const liquid = useRef<MeshStandardMaterial>(null);
   const cap = useRef<MeshStandardMaterial>(null);
   const stem = useRef<MeshStandardMaterial>(null);
@@ -147,18 +155,31 @@ function BottleMeshes({
     <group ref={groupRef}>
       <group position={[0, -TOTAL_HEIGHT / 2, 0]}>
         <mesh name="Glass" geometry={geometries.glass}>
-          <meshPhysicalMaterial
-            ref={glass}
-            transmission={1}
-            roughness={0.05}
-            ior={1.45}
-            thickness={0.15}
-            metalness={0}
-            color="#ffffff"
-            envMapIntensity={envIntensity}
-            clearcoat={0.1}
-            clearcoatRoughness={0.2}
-          />
+          {cheapGlass ? (
+            <meshStandardMaterial
+              ref={glass}
+              roughness={0.08}
+              metalness={0.2}
+              color="#ffffff"
+              transparent
+              opacity={0.4}
+              depthWrite={false}
+              envMapIntensity={envIntensity * 2}
+            />
+          ) : (
+            <meshPhysicalMaterial
+              ref={glass}
+              transmission={1}
+              roughness={0.05}
+              ior={1.45}
+              thickness={0.15}
+              metalness={0}
+              color="#ffffff"
+              envMapIntensity={envIntensity}
+              clearcoat={0.1}
+              clearcoatRoughness={0.2}
+            />
+          )}
         </mesh>
 
         <mesh name="Liquid" geometry={geometries.liquid}>

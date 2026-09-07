@@ -26,7 +26,7 @@ import {
   heroChoreography,
   ramp,
 } from "@/lib/heroChoreography";
-import { bottleScreen, visibleHeightAt } from "@/lib/bottleScreen";
+import { bottleScreen, visibleHeightAt, type BottleVariant } from "@/lib/bottleScreen";
 import { BottleModel } from "./BottleModel";
 import type { LiquidColor } from "./liquidColor";
 import { LIQUID_LEVEL_LOCAL_Y, SloshSpring, updateLiquidPlane } from "./liquidLevel";
@@ -152,7 +152,19 @@ const tipDet = new Vector3();
 const projected = new Vector3();
 const debugV = new Vector3();
 
-export function HeroBottle({ drivers, liquid }: { drivers: HeroDrivers; liquid: LiquidColor }) {
+export function HeroBottle({
+  drivers,
+  liquid,
+  variant = "wide",
+  cheapGlass = false,
+}: {
+  drivers: HeroDrivers;
+  liquid: LiquidColor;
+  /** Raspored u kadru: desna polovina (desktop) ili centar ispod copy-ja (telefon, korak 18 A). */
+  variant?: BottleVariant;
+  /** Mobilni budžet: staklo bez transmisije (drugi prolaz rendera je na telefonu preskup). */
+  cheapGlass?: boolean;
+}) {
   const group = useRef<Group>(null);
   // Zaseban ref za model i za zatvarač: da grupa deli ref sa `BottleModel`, posle Suspense zamene
   // (GLB umesto proceduralne) transform bi se primenio dvaput (nađeno u koraku 13).
@@ -215,7 +227,7 @@ export function HeroBottle({ drivers, liquid }: { drivers: HeroDrivers; liquid: 
     const c = heroChoreography(p);
     const W = state.size.width;
     const H = Math.max(1, state.size.height);
-    const screen = bottleScreen(p, drivers.holdEnd.current, W, H);
+    const screen = bottleScreen(p, drivers.holdEnd.current, W, H, variant);
 
     // Kamera: dolly-out dok se četkica vadi, nazad tokom razlivanja.
     const camera = state.camera as PerspectiveCamera;
@@ -269,7 +281,7 @@ export function HeroBottle({ drivers, liquid }: { drivers: HeroDrivers; liquid: 
      */
     const pd = Math.min(p, ACTS.dropFall[0]);
     const cd = pd === p ? c : heroChoreography(pd);
-    const sd = pd === p ? screen : bottleScreen(pd, drivers.holdEnd.current, W, H);
+    const sd = pd === p ? screen : bottleScreen(pd, drivers.holdEnd.current, W, H, variant);
     applyPose(scratch.body, scratch.cap, {
       x: (sd.x / W - 0.5) * sd.visibleWidth,
       y: (0.5 - sd.baseY / H) * sd.visibleHeight + (TOTAL_HEIGHT / 2) * sd.scale,
@@ -415,6 +427,7 @@ export function HeroBottle({ drivers, liquid }: { drivers: HeroDrivers; liquid: 
           envIntensityRef={envIntensity}
           liquidPlane={plane}
           liquidColor={liquid.value}
+          cheapGlass={cheapGlass}
         />
         {/* Nevidljiva kapsula za hover/klik — jedini objekat koji R3F raycast-uje; pokriva i podignut zatvarač. */}
         <mesh visible={false} position={[0, HOVER_LIFT, 0]} onPointerOver={over} onPointerOut={out} onClick={click}>

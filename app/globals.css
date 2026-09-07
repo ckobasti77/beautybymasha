@@ -229,6 +229,20 @@ html.lenis body {
 }
 
 /*
+ * Prozor reprodukcije hero uvoda (korak 18 B, `lib/heroPlayback.ts`) — JEDINI lock na sajtu
+ * osim mobilnog menija, i traje najviše 3 s. Skrol tada vozimo mi, programski, u koraku sa
+ * vremenom; korisnikov ulaz blokira Lenis (`preventDefault` dok je `stop()`-ovan). Zato se
+ * `overflow: hidden` iz `.lenis-stopped` OVDE poništava: na delu motora `overflow: hidden` na
+ * korenu zaključa i programski skrol, pa bi kadar stao dok koreografija ide dalje.
+ */
+html[data-hero-play].lenis.lenis-stopped {
+  overflow: visible;
+}
+html[data-hero-play] {
+  overscroll-behavior: none;
+}
+
+/*
  * Skok na sidro (`/#zakazivanje`, deep link `#zakazivanje?usluga=`, `#kontakt` u footeru)
  * sleće ispod fiksne trake. Lenis `scrollTo` i nativni `scrollIntoView` oba čitaju
  * `scroll-margin-top`.

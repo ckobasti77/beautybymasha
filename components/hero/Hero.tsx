@@ -22,6 +22,8 @@ import {
 } from "@/lib/heroChoreography";
 import { HERO_COLOR_STORAGE_KEY, HeroColorCycle, effectivePourHex, inkFor, mixHex } from "@/lib/heroColors";
 import { setHeroProgress } from "@/lib/heroProgress";
+import { createHeroPlayback, easeInOutCubic, type HeroPlayback, type PlaybackState } from "@/lib/heroPlayback";
+import { createTilt } from "@/lib/tilt";
 import {
   SIG_ERASE,
   dotAt,
@@ -36,9 +38,17 @@ import {
 import { LETTERS_END, LETTER_COUNT, letterTravelAt, type Rect } from "@/lib/logoTravel";
 import { palette } from "@/lib/palette";
 import { revealWords } from "@/lib/textReveal";
-import { useMediaQuery } from "@/lib/useMediaQuery";
-import { useCanvasActive, useWebGLAllowed } from "@/lib/webgl";
+import {
+  FRAME_BUDGET_MS,
+  useCanvasActive,
+  useMobileBudget,
+  useNarrowLayout,
+  useWebGLAllowed,
+  webglRejection,
+} from "@/lib/webgl";
+import { useOptionalLenis } from "@/components/providers/SmoothScroll";
 import { HeroDrop, HeroPour } from "./HeroDrop";
+import { HeroSkip } from "./HeroSkip";
 import { HeroFallback } from "./HeroFallback";
 import { HeroScrim } from "./HeroScrim";
 import type { HeroDrivers } from "./heroDrivers";
@@ -91,6 +101,13 @@ declare global {
       readonly signature: { erased: number; written: number; dot: { x: number; y: number; visible: boolean; phase: string } };
       readonly frostClip: number;
       readonly bottle: Record<string, number>;
+      /** Stanje reprodukcije uvoda (spec 18 B) i izvor nagiba (spec 18 D). */
+      readonly playback: string;
+      readonly tilt: string;
+      /** Cilj nagiba (miš ili žiroskop), -1..1 — provera 18 F9. */
+      readonly pointer: { x: number; y: number };
+      /** Zašto platno nije na ekranu / zašto je ugašeno u radu (spec 18 A). */
+      readonly downgrade: string | null;
     };
   }
 }
@@ -183,13 +200,28 @@ export function Hero({ colors }: { colors: readonly string[] }) {
   const applyRef = useRef<((p: number) => void) | null>(null);
   const introRef = useRef<SignatureIntro | null>(null);
   const introTlRef = useRef<gsap.core.Timeline | null>(null);
+  const playbackRef = useRef<HeroPlayback | null>(null);
 
-  const webgl = useWebGLAllowed();
+  const { allowed, decided } = useWebGLAllowed();
+  const mobile = useMobileBudget();
+  const narrow = useNarrowLayout();
+  const lenis = useOptionalLenis();
+  /*
+   * Poslednja odbrana budžeta (spec 18 A): ako prosek frejma u prve 2 s prebije budžet, platno
+   * se demontira i ostaje `HeroDrop`. Odluka je jednosmerna — treperava bočica bi bila gore od
+   * nijedne. Razlog stoji u `window.__bbmHero.downgrade`.
+   */
+  const [downgrade, setDowngrade] = useState<string | null>(null);
+  const webgl = allowed && downgrade === null;
   const active = useCanvasActive(rootRef, webgl);
-  const bottle = useMediaQuery("(min-width: 1024px)");
-  // DOM kap: bez bočice. Server snapshot je `false`, pa se montira tek posle hidratacije —
-  // nema bljeska kapi na desktopu dok `useWebGLAllowed` još odlučuje.
-  const drop = useMediaQuery("(max-width: 1023px)");
+  // Bočica ide svuda gde platno sme (ADR-005 povučen, korak 18 A); šta se štedi (`mobile`) i gde
+  // stoji u kadru (`narrow`) su DVA različita upita — vidi `lib/webgl.ts`.
+  const bottle = webgl;
+  // DOM kap i prosipanje: samo kad platna NEMA. `decided` čuva od bljeska kapi na uređaju koji
+  // vozi bočicu — dok odluka nije doneta ne montira se ni jedno ni drugo.
+  const drop = decided && !webgl;
+  /** Stanje reprodukcije uvoda — vidi ga samo dugme „Preskoči" (spec 18 C2). */
+  const [playState, setPlayState] = useState<PlaybackState>("idle");
 
   const first = colors[0] ?? palette.mint;
 
@@ -213,20 +245,29 @@ export function Hero({ colors }: { colors: readonly string[] }) {
     frostClip: 100,
   }));
 
-  /* ---- pointer: cilj u -1..1, inerciju rade shader i bočica; samo pravi miš ---- */
+  /*
+   * Nagib: cilj u -1..1, inerciju rade shader i bočica. Do koraka 18 samo miš; sada
+   * `lib/tilt.ts` daje isti vektor iz `pointermove` ILI iz žiroskopa (spec 18 D). Odjava kad
+   * hero izađe iz kadra ili se tab sakrije ide kroz `active` — isti signal koji gasi crtanje.
+   */
+  const tiltRef = useRef<ReturnType<typeof createTilt> | null>(null);
   useEffect(() => {
     if (!webgl) return;
-    const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
-    if (!fine.matches) return;
-    const onMove = (e: PointerEvent) => {
-      drivers.pointer.current = {
-        x: (e.clientX / window.innerWidth) * 2 - 1,
-        y: 1 - (e.clientY / window.innerHeight) * 2,
-      };
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const tilt = createTilt((v) => {
+      drivers.pointer.current = v;
+    }, reduced);
+    tiltRef.current = tilt;
+    return () => {
+      tilt.destroy();
+      tiltRef.current = null;
+      drivers.pointer.current = { x: 0, y: 0 };
     };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
   }, [webgl, drivers]);
+
+  useEffect(() => {
+    tiltRef.current?.setActive(active);
+  }, [active]);
 
   /* ---- boje: ciklus, hvatanje, ink (spec 13 D) ---- */
   useEffect(() => {
@@ -310,11 +351,23 @@ export function Hero({ colors }: { colors: readonly string[] }) {
       get bottle() {
         return drivers.debug.current;
       },
+      get playback() {
+        return playbackRef.current?.state() ?? "idle";
+      },
+      get tilt() {
+        return tiltRef.current?.source() ?? "none";
+      },
+      get pointer() {
+        return drivers.pointer.current;
+      },
+      get downgrade() {
+        return downgrade ?? (allowed ? null : webglRejection);
+      },
     };
     return () => {
       delete window.__bbmHero;
     };
-  }, [drivers, dev]);
+  }, [drivers, dev, downgrade, allowed]);
 
   /* ---- ulaz: reč po reč, dugmad poslednja (docs/MOTION.md → Redosled) ---- */
   useGSAP(
@@ -760,6 +813,16 @@ export function Hero({ colors }: { colors: readonly string[] }) {
             });
           };
 
+          /*
+           * DVA IZVORA ZA `p`, JEDAN `apply` (spec 18 → B3). `scrollP` je napredak
+           * ScrollTrigger-a, `timeP` je vremenski izvor reprodukcije (`lib/heroPlayback.ts`);
+           * `p = max(timeP, scrollP)`. Koreografija ne zna za razliku — `apply` je i dalje
+           * jedina tačka upisa, pa reload i skrol daju isto stanje kao i do sada.
+           */
+          let scrollP = 0;
+          let timeP: number | null = null;
+          const drive = () => apply(Math.max(timeP ?? 0, scrollP));
+
           const trigger = ScrollTrigger.create({
             trigger: root,
             start: "top top",
@@ -777,11 +840,60 @@ export function Hero({ colors }: { colors: readonly string[] }) {
               measure();
               armSignatures();
             },
-            onRefresh: (self) => apply(self.progress),
-            onUpdate: (self) => apply(self.progress),
+            onRefresh: (self) => {
+              scrollP = self.progress;
+              drive();
+            },
+            onUpdate: (self) => {
+              scrollP = self.progress;
+              drive();
+            },
           });
 
+          /*
+           * REPRODUKCIJA JEDNIM SKROLOM (spec 18 → B). Zaključavanje živi samo ovde i samo dok
+           * `playing` traje. Skrol se u tom prozoru vozi PROGRAMSKI, u koraku sa vremenom:
+           * `stageLag(p)` i `shelfEdgeInStage(p)` prevode `p` u piksele rasporeda i oba
+           * pretpostavljaju `p === scrollP`, pa bi vreme koje trči ispred zaključanog skrola
+           * gurnulo stage 29 % kadra naniže (obrazloženje u `lib/heroPlayback.ts`).
+           */
+          let playback: HeroPlayback | null = null;
+          if (!reduce && lenis) {
+            // Lenis se pravi u `useEffect` roditelja, a ovo je `useLayoutEffect` deteta —
+            // instanca ovde JOŠ NE POSTOJI. Zato se čita lenjo, na svaki poziv.
+            const span = () => Math.max(1, trigger.end - trigger.start);
+            playback = createHeroPlayback({
+              setTimeProgress: (value) => {
+                timeP = value;
+                drive();
+              },
+              syncScroll: (value) => {
+                window.scrollTo(0, trigger.start + value * span());
+              },
+              handoffTarget: () => trigger.end,
+              lock: () => {
+                document.documentElement.dataset.heroPlay = "";
+                lenis.current?.stop();
+              },
+              unlock: () => {
+                lenis.current?.start();
+                delete document.documentElement.dataset.heroPlay;
+              },
+              scrollTo: (y, seconds) => {
+                const instance = lenis.current;
+                if (instance) instance.scrollTo(y, { duration: seconds, easing: easeInOutCubic });
+                else window.scrollTo({ top: y, behavior: "smooth" });
+              },
+              onGesture: () => tiltRef.current?.requestGyro(),
+              onState: setPlayState,
+            });
+            playbackRef.current = playback;
+          }
+
           return () => {
+            playback?.destroy();
+            playbackRef.current = null;
+            delete document.documentElement.dataset.heroPlay;
             trigger.kill();
             applyRef.current = null;
             gsap.set([stage, copy, title, lead, cta, strip], { clearProps: "transform,opacity" });
@@ -817,7 +929,7 @@ export function Hero({ colors }: { colors: readonly string[] }) {
         },
       );
     },
-    { scope: rootRef, dependencies: [drivers, dev, drop] },
+    { scope: rootRef, dependencies: [drivers, dev, drop, lenis] },
   );
 
   return (
@@ -837,7 +949,18 @@ export function Hero({ colors }: { colors: readonly string[] }) {
         <div className="absolute inset-0 -z-10">
           {/* Svetla podloga UVEK ispod canvasa — dok lenji chunk stiže i u tamnoj temi (spec 14 C). */}
           <HeroFallback />
-          {webgl ? <LiquidCanvas drivers={drivers} active={active} bottle={bottle} /> : null}
+          {webgl ? (
+            <LiquidCanvas
+              drivers={drivers}
+              active={active}
+              bottle={bottle}
+              mobile={mobile}
+              narrow={narrow}
+              onBudget={(avg) => {
+                if (avg > FRAME_BUDGET_MS) setDowngrade(`prosek frejma ${avg.toFixed(1)} ms > ${FRAME_BUDGET_MS} ms`);
+              }}
+            />
+          ) : null}
         </div>
         {drop ? <HeroPour pourRef={pourRef} /> : null}
 
@@ -845,17 +968,21 @@ export function Hero({ colors }: { colors: readonly string[] }) {
           Omotač i kolona ne hvataju pointer: providna kutija iznad canvasa bi gutala
           hover/klik na bočici. Copy kontejner ih vraća (`pointer-events-auto`).
         */}
-        <div className="pointer-events-none mx-auto w-full max-w-content px-5 pt-28 pb-20 md:px-8 md:pt-32">
+        {/*
+          Na telefonu je copy ZBIJEN i vezan za vrh (korak 18 A): bočica traži donji pojas
+          kadra, a centriranje bi joj ga pojelo s obe strane. Desktop raspored je netaknut.
+        */}
+        <div className="pointer-events-none mx-auto w-full max-w-content px-5 pb-20 max-lg:mb-auto max-lg:pt-20 max-lg:pb-4 md:px-8 lg:pt-32">
           {/*
             Leva kolona: na ≥ 1024 px ne ide dalje od polovine kadra — desna polovina je
             bočica u canvasu. Ispod toga zauzima punu širinu. `relative` zbog scrima koji je
             120 % njene širine.
           */}
-          <div className="relative flex flex-col gap-10 lg:max-w-[calc(50vw-2rem)]">
+          <div className="relative flex flex-col gap-10 max-lg:gap-5 lg:max-w-[calc(50vw-2rem)]">
             <HeroScrim />
 
             {/* `hero-wordmark`: SVG mora da bude overflow visible — slova lete van svog viewBox-a. */}
-            <div ref={wordmarkRef} className="hero-wordmark w-full max-w-[min(78vw,540px)]">
+            <div ref={wordmarkRef} className="hero-wordmark w-full max-w-[min(78vw,540px)] max-lg:max-w-[min(58vw,540px)]">
               <LogoSignature variant="wordmark" size="100%" className="block w-full text-ink" introRef={introRef} />
             </div>
 
@@ -864,7 +991,7 @@ export function Hero({ colors }: { colors: readonly string[] }) {
               `gap` padne između reči i `lib/textReveal.ts` tada ceo element gasi kao blok.
               Razmak drži `space-y-*` (margina), pa reč-po-reč ostaje moguć.
             */}
-            <div ref={copyRef} data-hero-copy className="pointer-events-auto relative max-w-2xl space-y-6">
+            <div ref={copyRef} data-hero-copy className="pointer-events-auto relative max-w-2xl space-y-6 max-lg:space-y-4">
               {drop ? <HeroDrop hex={first} swatchRef={swatchRef} dropRef={dropRef} /> : null}
               <h1 ref={titleRef} data-reveal-motion="pending" className="hero-ink text-h1 max-lg:pr-24">
                 Dva salona u Belvilleu. Termin birate sami.
@@ -875,7 +1002,12 @@ export function Hero({ colors }: { colors: readonly string[] }) {
               </p>
 
               <div ref={ctaRef} data-reveal-motion="pending" className="flex flex-wrap items-center gap-3">
-                <Button as="a" href="#zakazivanje" size="lg">
+                {/*
+                  `data-hero-cta` (spec 18 → C3): namera je jača od efekta. Klik tokom uvoda ne
+                  čeka animaciju — reprodukcija se prekida BEZ auto-skrola na `.hero-overlap`,
+                  pa sidro `#zakazivanje` ostaje ono što vodi stranu.
+                */}
+                <Button as="a" href="#zakazivanje" size="lg" data-hero-cta onClick={() => playbackRef.current?.skip(false)}>
                   Zakažite termin
                 </Button>
                 {/* Podloga hero-a je uvek svetla (shader ili gradijent), i u tamnoj temi —
@@ -898,6 +1030,7 @@ export function Hero({ colors }: { colors: readonly string[] }) {
           </div>
         </div>
       </div>
+      <HeroSkip visible={playState === "playing"} onSkip={() => playbackRef.current?.skip()} />
     </section>
   );
 }

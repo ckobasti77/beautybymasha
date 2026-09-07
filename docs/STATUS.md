@@ -1,8 +1,126 @@
 # STATUS
 
-Stanje posle koraka **16 — hero shader: ređe polje i dublji mint; CTA ne skaču na izlazu**
-(ispod: korak 15, 14, 13, 12, 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro: šta
-radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+Stanje posle koraka **18 — hero se pušta jednim skrolom, 3D na telefonu, žiroskop, dugme za vrh**
+(ispod: korak 16, 15, 14, 13, 12, 11, pa zatečeno stanje posle koraka 08). Ovo je lista za jutro:
+šta radi, šta ne radi, i svaki `[POTVRDITI]` sa putanjom fajla.
+
+## Korak 18 — hero v4: jedan skrol pušta uvod, bočica i na telefonu, žiroskop, „nazad na vrh"
+
+Četiri zahteva. Koreografija iz koraka 13–16 je **netaknuta** — nijedna vrednost u
+`lib/heroChoreography.ts`, `lib/logoTravel.ts`, `lib/logoSignature.ts` ni `lib/heroColors.ts`
+nije promenjena. Menja se samo KO vozi `p`, na kojim uređajima se crta, odakle dolazi nagib, i
+dodaje se jedno dugme.
+
+### 1. Uvod se pušta jednim skrolom (`lib/heroPlayback.ts`, novo)
+
+`p = max(timeP, scrollP)`. Stanja `armed → playing → handoff → done`; naoružavanje na
+`scrollY ≤ 2` zadržano 350 ms, okidač prvi `wheel` naniže / `touchmove` > 6 px /
+`Space`/`PageDown`/`ArrowDown`, tween `{v:0} → 0.75` za `PLAY_MS = 2200` (`power2.inOut`), pa
+`lenis.scrollTo(vrh .hero-overlap, 0.9 s, easeInOutCubic)`.
+
+**Odstupanje od specifikacije, sa razlogom.** Specifikacija traži da skrol stoji zaključan na 0
+dok vreme vozi `p`. To ne može: `p` nije samo izgled. `stageLag(p)` i `shelfEdgeInStage(p)`
+prevode napredak u PIKSELE rasporeda i oba pretpostavljaju `p === scrollP` (sticky stage miruje
+do HOLD_END = 0.41, posle zaostaje za stranom). Na `p = 0.75` uz `scrollY = 0` model računa vrh
+stage-a na −0.29 vh, a stvarni je +0.29 vh — razlika je 0.58 vh: pojas prazne pozadine na vrhu
+kadra i bočica koja lebdi 29 % kadra iznad police. Zato reprodukcija vozi VREME I SKROL u
+koraku: tween piše `timeP` i istim brojem programski postavlja poziciju strane. `max(timeP,
+scrollP)` je i dalje ono što se izvršava (štiti kad ScrollTrigger kasni frejm i kad korisnik
+skoči napred), lock i dalje postoji i traje najviše 3 s, a mereno je da se model i DOM slažu:
+na `p = 0.75` `stageTop` iz modela = −300 px, izmeren `getBoundingClientRect().top` = −297 px.
+Na kraju `playing` se `timeP` **otpušta** (ne zamrzava na 0.75) — skrol je već tu gde treba, pa
+nema skoka ni tada ni kad se korisnik vrati nagore.
+
+**Lock** je `lenis.stop()` (Lenis tada `preventDefault`-uje wheel i touch) +
+`html[data-hero-play] { overscroll-behavior: none }`. `overflow: hidden` iz `.lenis-stopped` se
+u tom prozoru poništava (`app/globals.css`) — na delu motora zaključava i programski skrol.
+`body` se ne dira nigde.
+
+**Indikator „Preskoči" — odstupanje.** Specifikacija traži da POSTOJEĆI indikator skrola na dnu
+heroja promeni tekst. Indikatora nema i nikad ga nije bilo (poziv da se skrola nosi bočica koja
+na hover podigne zatvarač). Umesto novog overlay-a dodat je `components/hero/HeroSkip.tsx`: dugme
+44 px, `aria-label="Preskoči uvod"`, `fixed` na dnu kadra, u DOM-u SAMO dok traje `playing`.
+`fixed` i van `.hero-stage` jer stage ima `will-change: transform` (containing block) i u drugoj
+polovini reprodukcije odlazi iznad kadra.
+
+### 2. 3D bočica i na telefonu (ADR-005 povučen → ADR-005b)
+
+`lib/webgl.ts` više ne gleda širinu nego sposobnost: `webgl2` + ne-reduced-motion +
+(`deviceMemory ≥ 4` ILI `hardwareConcurrency ≥ 4`, polje kojeg nema prolazi) + prvi frejm ispod
+120 ms (`gl.finish()` na probnom platnu 64×64). Poslednja odbrana je merenje u radu: prosek
+frejma u prve 2 s > 26 ms → platno se demontira, vraća se `HeroDrop`, razlog u
+`window.__bbmHero.downgrade`.
+
+Širina više ne odlučuje DA LI se crta, nego dve druge stvari:
+
+| | upit | šta menja |
+| --- | --- | --- |
+| BUDŽET (`useMobileBudget`) | `(max-width: 767px), (pointer: coarse)` | `dpr` 1.25 (desktop 1.5), `antialias: false`, `powerPreference: "low-power"`, `uOctaves` 3 → 2, staklo bez `transmission` (`MeshStandardMaterial`, `opacity` 0.4, `envMapIntensity ×2`) |
+| RASPORED (`useNarrowLayout`) | `(max-width: 1023px)` | bočica u donjem pojasu: 25 % visine kadra, centrirana, baza na 99 % |
+
+Dva upita, ne jedan: tablet u landscape-u ima grubu kazaljku i skroman GPU, ali širok kadar —
+zaslužuje jeftin render i desni raspored. `uOctaves` je uniform sa `break` u petlji (GLSL ES 1.00
+traži konstantnu gornju granicu), pa se treći sloj šuma na telefonu zaista ne računa.
+
+**Odstupanja, sa razlogom.**
+
+| specifikacija | urađeno | zašto |
+| --- | --- | --- |
+| bočica 44 % visine kadra | **25 %**, baza na 99 % | hero copy na 390×844 ide do y = 605 i posle zbijanja (`pt` 112→80, `gap` 40→20, wordmark 78vw→58vw, razmaci 24→16 px). Slobodan pojas je 239 px = 28 % kadra, a bočici treba i vazduh iznad zatvarača. Sa 44 % bi zatvarač presekao dugmad; „copy ostaje čitljiv" je jači uslov od broja. |
+| desktop `dpr` 2 | **ostaje 1.5** | 1.5 je izmeren budžet iz koraka 12 za fBm shader; podizanje na 2 udvostručuje trošak fragmenta na desktopu, a nijedan od četiri zahteva to ne traži. |
+| `transmissionResolutionScale` se ne koristi na telefonu | tako je | bez transmisije drugog prolaza nema, pa podešavanje ni ne postoji. |
+
+Merenje (390×844, Chrome, 4× CPU throttle, 2,5 s kroz celu reprodukciju): **prosek frejma
+11,1 ms, p95 18,9 ms** (prag 26 ms), bez downgrade-a. Sopstveno merenje komponente
+(`FrameBudget`, prve 2 s posle prva tri frejma): **8,0 ms**. Put pada je proveren tako što je
+prag privremeno spušten na 0,1 ms — platno se demontiralo, `HeroDrop` i `.hero-pour` su se
+montirali, `window.__bbmHero.downgrade` = „prosek frejma 8.0 ms > 0.1 ms". Lenji chunk se nije
+menjao (isti `LiquidCanvas` + `HeroBottle`).
+
+### 3. Žiroskop (`lib/tilt.ts`, novo)
+
+Jedan modul, isti izlaz `{x, y}` u −1..1 za `uPointer` i nagib bočice; `pointermove` za finu
+kazaljku, `deviceorientation` inače. iOS `requestPermission()` se zove IZ ISTOG gesta koji pušta
+animaciju (`onGesture` u `heroPlayback`), nikad na učitavanju; odbijena dozvola = tišina.
+Kalibracija na prvo očitavanje, mrtva zona 1.5°, lerp 0.12 po događaju, amplituda **pola**
+desktopske, odjava kad hero izađe iz kadra ili se tab sakrije.
+
+### 4. „Nazad na vrh" (`components/site/BackToTop.tsx`, novo)
+
+48 px, `.nav-frost` + mint-deep strelica, `z-40`, `fixed right-5 bottom-[calc(1.25rem+safe-area)]`,
+opacity+scale 200 ms, `aria-label`/`title` „Nazad na vrh", `lenis.scrollTo(0, 0.8 s)`, posle
+dolaska fokus na nav logo. Sakriveno dok je `body` zaključan (meni ili dijalog) i u `/admin`.
+Dolazak na vrh naoružava hero bez ijedne posebne linije — `heroPlayback` gleda samo `scrollY`.
+
+### Provera (Playwright, dev, 1440×900 i 390×844)
+
+| # | šta | rezultat |
+| --- | --- | --- |
+| 1 | jedan `wheel` od 40 px sa vrha | `p` raste bez daljeg skrola; `p = 0.75` na 2,2 s; strana sama stigne do `.hero-overlap`, `rect.top = 0 px` ✅ |
+| 2 | trajanje okidač → mirovanje | **≈ 2,9 s** (2,2 s reprodukcija + 0,9 s handoff), traženo 2,0–3,4 ✅ |
+| 3 | prekid: `wheel` 300 px posle 400 ms | otključano za **45 ms** (prag 150), tween na kraju, strana se pomera normalno ✅ |
+| 4 | sakriven tab 5 s | po povratku strana nije zaključana (`data-hero-play` skinut, `lenis-stopped` skinut), skrol radi ✅ |
+| 5 | `Escape` i klik; „Preskoči" tastaturom | `Escape` → `handoff`, otključano ✅; dugme fokusabilno, `click` → `handoff` za 30 ms ✅ |
+| 6 | ponovno naoružavanje preko dugmeta za vrh | `scrollY = 0`, fokus na nav logo, posle 350 ms stanje `armed`, novi mali skrol ponovo pušta uvod ✅ |
+| 7 | deep link `/#cenovnik` | `scrollY = 7579`, nema locka, stanje `done`, `wheel` ne pušta animaciju ✅ |
+| 8 | telefon 390 | `touchmove` od 12 px pušta uvod; canvas 375×844 px, `HeroDrop` nije montiran; prosek frejma 11,1 ms uz 4× throttle ✅ |
+| 9 | žiroskop (simulirani `deviceorientation`) | kalibracija → 0; 1° → 0 (mrtva zona); `gamma +20°` → `uPointer.x = 0.370` = (20−1,5)/25 × 0,5; `gamma +90°` → 0,500 i nikad preko; `beta +20°` → `y = −0.370`, `x = 0` ✅ |
+| 10 | `prefers-reduced-motion` | nema canvasa, nema reprodukcije, nema locka, nema žiroskopa; `wheel` odmah skroluje ✅ |
+| 11 | dugme za vrh | 48×48, `z-40`, opacity 0 na 2 ekrana − 10 px i 1 na +50 px, `aria-label`, fokus posle dolaska ✅ |
+| 12 | regresije (obe teme, 360/390/430/900/1024/1440) | `.pin-spacer` = 0, `[data-reveal-state="pending"]` = 0, elemenata sa `opacity: 0` = 0, `.reveal-word` van `#hero` = 0, `body.style.overflow` prazno, horizontalno prekoračenje 0 ✅ |
+
+`npm run typecheck` ✓ · `npm run lint` (0) ✓ · `npx vitest run` (**224**, +9 novih u
+`lib/heroPlayback.test.ts`) ✓ · `npm run build` ✓
+
+### Šta NIJE urađeno
+
+- **Merenje na pravom telefonu.** Svi brojevi su Chrome desktop sa emulacijom i CPU throttle-om;
+  GPU je desktopski. Budžet od 26 ms i put pada su tu baš zbog toga, ali pravi telefon treba
+  izmeriti pre puštanja u rad.
+- **iOS `requestPermission()` na pravom uređaju.** Grana je pisana po Apple specifikaciji i zove
+  se iz gesta, ali headless Chromium taj API nema — provereno je samo da se žiroskop kači tek
+  POSLE gesta (`window.__bbmHero.tilt`: `none` pre, `gyro` posle).
+
 
 ## Korak 16 — hero shader: ređe polje i dublji mint; CTA ne skaču na izlazu
 

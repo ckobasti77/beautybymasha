@@ -41,7 +41,7 @@ export function BottleShowcase({
   fallback?: ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const allowed = useWebGLAllowed();
+  const { allowed } = useWebGLAllowed();
   const active = useCanvasActive(rootRef, allowed);
 
   // Mutable kutija van React-a: prevlačenje piše u nju na svaki pomeraj pokazivača,

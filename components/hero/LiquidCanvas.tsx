@@ -6,20 +6,22 @@ import { Color, Vector2, type ShaderMaterial } from "three";
 import { HeroBottle } from "@/components/three/HeroBottle";
 import { LiquidColor } from "@/components/three/liquidColor";
 import { heroChoreography, pourMaxRadius } from "@/lib/heroChoreography";
+import { FRAME_SAMPLE_MS } from "@/lib/webgl";
 import { HERO_CAMERA, type HeroDrivers } from "./heroDrivers";
 import { FRAGMENT_SHADER, HERO_PALETTE, VERTEX_SHADER } from "./liquidShader";
 
 /**
  * WebGL sloj hero sekcije. Montira se SAMO kad `components/hero/Hero.tsx` utvrdi da
- * smemo (WebGL2, desktop širina, bez prefers-reduced-motion) — vidi `lib/webgl.ts`.
+ * smemo (WebGL2, sposoban uređaj, bez prefers-reduced-motion) — vidi `lib/webgl.ts`.
  * Zato ovde nema nijedne provere sposobnosti: ako je ova komponenta na ekranu,
- * odluka je već doneta.
+ * odluka je već doneta. Ostaje samo merenje u radu (`FrameBudget`): ako prosek frejma u prve
+ * dve sekunde probije budžet, Hero gasi platno i vraća `HeroDrop` (korak 18 A).
  *
  * JEDAN canvas, jedna scena, jedna perspektivna kamera (spec 12 → A):
  *  - shader ravan 2×2 čiji vertex shader ide pravo u NDC (puni kadar bez obzira na
  *    kameru), bez testa dubine, `renderOrder -1` — crta se prva, kao pozadina;
- *  - bočica (`HeroBottle`) ispred nje, samo ≥ 1024 px (`bottle` prop). Od 769 do 1023
- *    px shader radi sam, bez bočice (razlivanje kreće iz DOM kapi).
+ *  - bočica (`HeroBottle`) ispred nje — od koraka 18 na SVAKOJ širini na kojoj platno sme
+ *    da radi (ADR-005 povučen); na telefonu u mobilnom rasporedu i budžetu (`mobile` prop).
  * Odnos stranica ulazi u shader kroz `uResolution`, da mrlje ostanu okrugle i na
  * širokom monitoru.
  *
@@ -52,6 +54,7 @@ function createUniforms() {
     uPalette: { value: HERO_PALETTE.map((hex) => new Color(hex)) },
     uReduced: { value: 0 },
     uResolution: { value: new Vector2(1, 1) },
+    uOctaves: { value: 3 },
   };
 }
 
@@ -65,13 +68,15 @@ function ColorDriver({ drivers, liquid }: { drivers: HeroDrivers; liquid: Liquid
   return null;
 }
 
-function LiquidPlane({ drivers, liquid }: { drivers: HeroDrivers; liquid: LiquidColor }) {
+function LiquidPlane({ drivers, liquid, octaves }: { drivers: HeroDrivers; liquid: LiquidColor; octaves: number }) {
   const material = useRef<ShaderMaterial>(null);
   const [initialUniforms] = useState(createUniforms);
 
   useFrame((state, delta) => {
     const u = material.current?.uniforms as Uniforms | undefined;
     if (!u) return;
+
+    u.uOctaves.value = octaves;
 
     u.uTime.value += Math.min(delta, MAX_DELTA);
 
@@ -114,6 +119,30 @@ function LiquidPlane({ drivers, liquid }: { drivers: HeroDrivers; liquid: Liquid
  * ekranu ume zateći stara slika: dok je canvas mirovao, platno je promenilo veličinu,
  * pa deo kadra ostane nenacrtan do sledećeg frejma.
  */
+/**
+ * Merenje u radu (korak 18 A): prosek trajanja frejma u prve `FRAME_SAMPLE_MS` crtanja. Jedan
+ * broj, jednom — Hero na osnovu njega odlučuje da li platno ostaje ili pada na `HeroDrop`.
+ * Prvih nekoliko frejmova nosi kompajliranje shadera i učitavanje GLB-a, pa se preskaču.
+ */
+function FrameBudget({ onResult }: { onResult: (avgMs: number) => void }) {
+  const box = useRef({ frames: 0, total: 0, done: false, start: 0 });
+
+  useFrame((_state, delta) => {
+    const b = box.current;
+    if (b.done) return;
+    b.frames += 1;
+    // Prva tri frejma su kompajliranje programa i prvi upload geometrije — ne mere uređaj.
+    if (b.frames <= 3) return;
+    if (b.start === 0) b.start = performance.now();
+    b.total += delta * 1000;
+    if (performance.now() - b.start < FRAME_SAMPLE_MS) return;
+    b.done = true;
+    onResult(b.total / Math.max(1, b.frames - 3));
+  });
+
+  return null;
+}
+
 function FrameGate({ active }: { active: boolean }) {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
@@ -126,12 +155,21 @@ export default function LiquidCanvas({
   drivers,
   active,
   bottle,
+  mobile,
+  narrow,
+  onBudget,
 }: {
   drivers: HeroDrivers;
   /** `false` kad hero izađe iz kadra ili se tab sakrije — tada se ne crta ništa. */
   active: boolean;
-  /** Bočica samo ≥ 1024 px (spec 12 → D); shader sam radi i od 769 px. */
+  /** Bočica u kadru (korak 18: uvek kad platno sme, ranije samo ≥ 1024 px). */
   bottle: boolean;
+  /** Mobilni budžet (korak 18 A): bez antialiasa, low-power, 2 oktave, staklo bez transmisije. */
+  mobile: boolean;
+  /** Uzak kadar (< 1024 px): bočica u donjem pojasu, manja i centrirana — ne desna polovina. */
+  narrow: boolean;
+  /** Prosek frejma u prve 2 s — Hero na osnovu njega gasi platno ako uređaj ne stiže. */
+  onBudget: (avgMs: number) => void;
 }) {
   const [liquid] = useState(() => new LiquidColor());
 
@@ -145,9 +183,14 @@ export default function LiquidCanvas({
     <div className="absolute inset-0">
       <Canvas
         camera={{ position: [0, 0, HERO_CAMERA.distance], fov: HERO_CAMERA.fov, near: 1, far: 80 }}
-        // Budžet E: dpr do 1.5; antialias zbog ivica stakla (shader sam ga ne traži).
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        // Budžet E: dpr do 1.5 (mobilni 1.25); antialias zbog ivica stakla — na telefonu
+        // otpada, tamo je gustina piksela sama po sebi dovoljna (korak 18 A).
+        dpr={mobile ? [1, 1.25] : [1, 1.5]}
+        gl={{
+          antialias: !mobile,
+          alpha: false,
+          powerPreference: mobile ? "low-power" : "high-performance",
+        }}
         frameloop={active ? "always" : "demand"}
         // `scroll: false`: R3F inače prati i položaj omotača na SKROL (react-use-measure) i na
         // svaku promenu `top` zove `gl.setSize` + re-render cele R3F scene — u fazi izlaska
@@ -159,17 +202,21 @@ export default function LiquidCanvas({
         // nema transmisivnih objekata, pa podešavanje ne košta ništa. Clipping ravan
         // (nivo tečnosti) traži `localClippingEnabled`.
         onCreated={({ gl }) => {
-          gl.transmissionResolutionScale = 0.5;
+          // Bez transmisije (mobilni budžet) drugog prolaza nema, pa ni ovo podešavanje.
+          if (!mobile) gl.transmissionResolutionScale = 0.5;
           gl.localClippingEnabled = true;
         }}
         aria-hidden
       >
         <color attach="background" args={[HERO_PALETTE[3]]} />
         <FrameGate active={active} />
+        <FrameBudget onResult={onBudget} />
         <ColorDriver drivers={drivers} liquid={liquid} />
-        <LiquidPlane drivers={drivers} liquid={liquid} />
+        <LiquidPlane drivers={drivers} liquid={liquid} octaves={mobile ? 2 : 3} />
         {/* Svetla (key + rim sweep) su u HeroBottle — ona ih vozi po frejmu. */}
-        {bottle ? <HeroBottle drivers={drivers} liquid={liquid} /> : null}
+        {bottle ? (
+          <HeroBottle drivers={drivers} liquid={liquid} variant={narrow ? "small" : "wide"} cheapGlass={mobile} />
+        ) : null}
       </Canvas>
     </div>
   );

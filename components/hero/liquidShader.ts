@@ -38,6 +38,9 @@ export const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3  uPalette[5];
   uniform float uReduced;     // 1 = bez kretanja (rezerva; mi tada i ne montiramo Canvas)
   uniform vec2  uResolution;
+  // Broj fBm oktava: 3 na desktopu, 2 u mobilnom budžetu (korak 18 A). JEDAN uniform, ne dve
+  // verzije koda — polje mora da ostane isto, samo bez najfinijeg sloja.
+  uniform float uOctaves;
 
   varying vec2 vUv;
 
@@ -67,12 +70,15 @@ export const FRAGMENT_SHADER = /* glsl */ `
     return 130.0 * dot(m, g);
   }
 
-  /* Tri oktave (korak 16): fine nabore ne želimo — polje je ređe i krupnije, a jeftinije je.
-     Lacunarity 2.02 ostaje; amplituda i dalje puca na pola po oktavi. */
+  /* Do tri oktave (korak 16): fine nabore ne želimo — polje je ređe i krupnije, a jeftinije je.
+     Lacunarity 2.02 ostaje; amplituda i dalje puca na pola po oktavi. Gornja granica petlje mora
+     da bude konstanta (GLSL ES 1.00), pa se uOctaves čita kao uslov izlaska — na telefonu
+     treći sloj šuma se ne računa uopšte, ne samo što mu je amplituda nula (korak 18 A). */
   float fbm(vec2 p) {
     float sum = 0.0;
     float amp = 0.5;
     for (int i = 0; i < 3; i++) {
+      if (float(i) >= uOctaves) break;
       sum += amp * snoise(p);
       p = p * 2.02 + vec2(11.3, 7.1);
       amp *= 0.5;
