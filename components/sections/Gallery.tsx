@@ -40,6 +40,15 @@ function srcOf(p: Photo): string {
   return CARD_VARIANT.has(p.id) ? p.card : p.photo;
 }
 
+/**
+ * Odnos stranica MORA da prati rez koji se prikazuje. `aspect` je odnos cele kartice
+ * (4:5 objava), a `photo` rez je uvek malo drugaciji — kad se ta dva pomešaju, `next/image`
+ * rezerviše kutiju pogrešnog oblika i slika se razvuče.
+ */
+function aspectOf(p: Photo): number {
+  return CARD_VARIANT.has(p.id) ? p.aspect : p.photoAspect;
+}
+
 function Lightbox({
   photo,
   onClose,
@@ -147,15 +156,15 @@ export function Gallery() {
             <button
               type="button"
               onClick={() => setIndex(i)}
-              className="block w-full overflow-hidden rounded-md focus-ring"
+              className="group block w-full overflow-hidden rounded-md focus-ring"
             >
               <Image
                 src={srcOf(p)}
                 alt={p.alt}
                 width={1080}
-                height={Math.round(1080 / p.aspect)}
+                height={Math.round(1080 / aspectOf(p))}
                 sizes="(min-width: 1024px) 300px, (min-width: 768px) 33vw, 50vw"
-                className="w-full transition-transform duration-300 ease-out-expo hover:scale-[1.02]"
+                className="w-full transition-transform duration-500 ease-out-expo can-hover:group-hover:scale-[1.08] can-hover:group-focus-visible:scale-[1.08]"
               />
             </button>
           </li>

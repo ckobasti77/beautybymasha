@@ -43,7 +43,7 @@ const CATEGORIES: readonly ServiceCategory[] = [
     title: "Masaža",
     blurb: "Relax, sportska, anticelulit i maderoterapija.",
     groups: ["masaza"],
-    photoId: "bbm-13",
+    photoId: "bbm-27",
   },
   {
     key: "pogled",

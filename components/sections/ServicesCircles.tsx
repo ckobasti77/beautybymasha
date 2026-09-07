@@ -41,7 +41,7 @@ export function ServicesCircles() {
                       src={photo.photo}
                       alt={photo.alt}
                       width={640}
-                      height={Math.round(640 / photo.aspect)}
+                      height={Math.round(640 / photo.photoAspect)}
                       sizes="128px"
                       className="size-full object-cover"
                     />

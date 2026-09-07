@@ -55,3 +55,6 @@ next-env.d.ts
 # Convex snapshot backupi (sadrze hash-eve lozinki i imejlove) i logovi runova
 .nightrun/backup/
 .nightrun/logs/
+
+# paketi izvora za reviziju (privremeni, veliki)
+.nightrun/audit/*.txt

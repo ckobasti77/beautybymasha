@@ -15,6 +15,8 @@ export type Photo = {
   readonly photo: string;
   /** širina / visina */
   readonly aspect: number;
+  /** Odnos stranica `photo` reza — razlicit od `aspect` (koji je odnos cele kartice). */
+  readonly photoAspect: number;
   readonly alt: string;
   readonly tags: readonly string[];
   readonly use: readonly string[];
@@ -25,6 +27,7 @@ type RawPhoto = {
   card: string;
   photo: string;
   aspect: number;
+  photoAspect?: number;
   alt: string;
   tags?: string[];
   use?: string[];
@@ -43,6 +46,7 @@ function parsePhoto(id: string, p: RawPhoto): Photo {
     card: p.card,
     photo: p.photo,
     aspect: p.aspect,
+    photoAspect: typeof p.photoAspect === "number" && p.photoAspect > 0 ? p.photoAspect : p.aspect,
     alt: p.alt,
     tags: p.tags ?? [],
     use: p.use ?? [],

@@ -17,7 +17,8 @@
     "use": [
       "galerija",
       "usluge-nokti"
-    ]
+    ],
+    "photoAspect": 0.8204
   },
   "bbm-02": {
     "widths": [
@@ -38,7 +39,8 @@
     "use": [
       "galerija",
       "shop-kontekst"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-03": {
     "widths": [
@@ -57,7 +59,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 1.3117
   },
   "bbm-04": {
     "widths": [
@@ -76,7 +79,8 @@
     "use": [
       "galerija",
       "usluge-pedikir"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-05": {
     "widths": [
@@ -96,7 +100,8 @@
     "use": [
       "galerija",
       "usluge-nokti"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-06": {
     "widths": [
@@ -117,7 +122,8 @@
       "galerija",
       "hero",
       "istaknuto"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-07": {
     "widths": [
@@ -135,7 +141,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8182
   },
   "bbm-08": {
     "widths": [
@@ -154,7 +161,8 @@
     "use": [
       "galerija",
       "usluge-pedikir"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-09": {
     "widths": [
@@ -173,7 +181,8 @@
     "use": [
       "usluge-trepavice"
     ],
-    "note": "Original je PRE/POSLE kartica - za prikaz efekta koristiti -card varijantu"
+    "note": "Original je PRE/POSLE kartica - za prikaz efekta koristiti -card varijantu",
+    "photoAspect": 2.0061
   },
   "bbm-10": {
     "widths": [
@@ -193,7 +202,8 @@
     "use": [
       "o-nama"
     ],
-    "note": "VAZNO: koristiti -card varijantu, crop je odsekao deo tima"
+    "note": "VAZNO: koristiti -card varijantu, crop je odsekao deo tima",
+    "photoAspect": 2.468
   },
   "bbm-11": {
     "widths": [
@@ -212,7 +222,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-12": {
     "widths": [
@@ -232,7 +243,8 @@
     "use": [
       "galerija",
       "shop-kontekst"
-    ]
+    ],
+    "photoAspect": 0.8182
   },
   "bbm-13": {
     "widths": [
@@ -251,7 +263,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8211
   },
   "bbm-14": {
     "widths": [
@@ -269,7 +282,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-15": {
     "widths": [
@@ -287,7 +301,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8182
   },
   "bbm-16": {
     "widths": [
@@ -307,7 +322,8 @@
     "use": [
       "galerija",
       "istaknuto"
-    ]
+    ],
+    "photoAspect": 0.9882
   },
   "bbm-17": {
     "widths": [
@@ -327,7 +343,8 @@
     "use": [
       "galerija",
       "hero"
-    ]
+    ],
+    "photoAspect": 0.8182
   },
   "bbm-18": {
     "widths": [
@@ -347,7 +364,8 @@
     "use": [
       "galerija",
       "shop-kontekst"
-    ]
+    ],
+    "photoAspect": 0.8189
   },
   "bbm-19": {
     "widths": [
@@ -365,7 +383,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.8204
   },
   "bbm-20": {
     "widths": [
@@ -383,7 +402,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.862
   },
   "bbm-21": {
     "widths": [
@@ -401,7 +421,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 0.9563
   },
   "bbm-22": {
     "widths": [
@@ -421,7 +442,8 @@
     ],
     "use": [
       "galerija"
-    ]
+    ],
+    "photoAspect": 1.6422
   },
   "bbm-23": {
     "widths": [
@@ -441,7 +463,8 @@
     "use": [
       "galerija",
       "hero"
-    ]
+    ],
+    "photoAspect": 0.8211
   },
   "bbm-24": {
     "widths": [
@@ -494,7 +517,8 @@
     ],
     "use": [
       "usluge-depilacija"
-    ]
+    ],
+    "photoAspect": 1.0
   },
   "bbm-26": {
     "widths": [
@@ -514,6 +538,28 @@
     ],
     "use": [
       "usluge-ostalo"
+    ],
+    "photoAspect": 1.0
+  },
+  "bbm-27": {
+    "widths": [
+      640,
+      1080,
+      1350
+    ],
+    "card": "/photos/bbm-27-card-1350.avif",
+    "photo": "/photos/bbm-27-photo-1350.avif",
+    "aspect": 1.0,
+    "photoAspect": 1.0,
+    "alt": "Relaks masaza ledja u salonu: maserkine ruke na ramenima klijentkinje, sveca i roze peskir u pozadini",
+    "tags": [
+      "masaza",
+      "relaks",
+      "ledja",
+      "salon"
+    ],
+    "use": [
+      "usluge-masaza"
     ]
   }
 }
