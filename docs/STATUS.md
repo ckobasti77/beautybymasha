@@ -1322,3 +1322,5 @@ Ona označena „komentar" nisu novo pitanje — objašnjavaju neki od markera o
 | `docs/BRAND.md:128` | dozvola za citiranje recenzija |
 | `docs/ADMIN.md:45` | kanal potvrde termina |
 | `docs/PLAN.md:40` | pravilo projekta, ne pitanje |
+
+Korak 19 preskocen: spec nije stigao (`.nightrun/specs/19-uiux.md` ne postoji, provereno 2026-09-07).

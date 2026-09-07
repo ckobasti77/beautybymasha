@@ -5,3 +5,4 @@ Model: opus | Koraci: 18-19 | Timeout po koraku: 120 min
 
 | Korak | Naziv | Ishod | Trajanje | Popravki |
 | --- | --- | --- | --- | --- |
+| 18 | 18-hero-v4 | OK | 45.9 min | 0 |
